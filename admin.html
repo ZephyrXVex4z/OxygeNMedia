@@ -199,6 +199,19 @@
   </div>
 </div>
 
+<!-- Modal: gestionar recursos pagados de un usuario -->
+<div class="hidden" id="modalPagos" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50;">
+  <div class="card" style="max-width:420px; width:90%; max-height:80vh; overflow-y:auto;">
+    <h3 id="pagosUsuarioNombre">Recursos pagados</h3>
+    <p style="color:var(--text-dim); font-size:13px;">Marca los recursos de paga que este usuario ya pagó en efectivo.</p>
+    <div id="listaPagos"></div>
+    <div style="margin-top:14px; display:flex; gap:8px;">
+      <button id="btnGuardarPagos">Guardar</button>
+      <button class="secondary" id="btnCerrarPagos">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="admin.js"></script>
 </body>
 </html>
