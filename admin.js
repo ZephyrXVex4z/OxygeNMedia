@@ -230,6 +230,7 @@ async function cargarTodos() {
       <td>${u.rol}</td>
       <td><span class="badge ${u.aprobado ? "gratis" : "pago"}">${u.aprobado ? "Aprobado" : "Pendiente"}</span></td>
       <td class="row-actions">
+        <button class="secondary" data-pagos="${docSnap.id}">Pagos</button>
         ${u.rol !== "admin"
           ? `<button class="secondary" data-makeadmin="${docSnap.id}">Hacer admin</button>`
           : ""}
@@ -237,6 +238,10 @@ async function cargarTodos() {
       </td>
     `;
     tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("[data-pagos]").forEach(btn => {
+    btn.addEventListener("click", () => abrirModalPagos(btn.dataset.pagos, btn.closest("tr")));
   });
 
   tbody.querySelectorAll("[data-makeadmin]").forEach(btn => {
@@ -255,3 +260,66 @@ async function cargarTodos() {
     });
   });
 }
+
+// ============ PAGOS (recursosComprados) ============
+
+const modalPagos = document.getElementById("modalPagos");
+const listaPagos = document.getElementById("listaPagos");
+const pagosUsuarioNombre = document.getElementById("pagosUsuarioNombre");
+const btnGuardarPagos = document.getElementById("btnGuardarPagos");
+const btnCerrarPagos = document.getElementById("btnCerrarPagos");
+
+let usuarioPagosActualId = null;
+
+async function abrirModalPagos(userId, filaTr) {
+  usuarioPagosActualId = userId;
+
+  // Datos del usuario: nombre y sus compras actuales
+  const usuarioSnap = await getDocs(query(collection(db, "usuarios"), where("__name__", "==", userId)));
+  let usuarioData = null;
+  usuarioSnap.forEach(d => usuarioData = d.data());
+  if (!usuarioData) return;
+
+  pagosUsuarioNombre.textContent = "Recursos pagados — " + usuarioData.nombre;
+  const comprados = usuarioData.recursosComprados || [];
+
+  // Solo recursos de paga (esGratis === false)
+  const recursosSnap = await getDocs(query(collection(db, "recursos"), where("esGratis", "==", false)));
+
+  if (recursosSnap.empty) {
+    listaPagos.innerHTML = "<p style='color:var(--text-dim); font-size:13px;'>No hay recursos de paga creados todavía.</p>";
+  } else {
+    listaPagos.innerHTML = "";
+    recursosSnap.forEach(docSnap => {
+      const r = docSnap.data();
+      const marcado = comprados.includes(docSnap.id);
+      const row = document.createElement("div");
+      row.className = "checkbox-row";
+      row.innerHTML = `
+        <input type="checkbox" id="pago_${docSnap.id}" value="${docSnap.id}" ${marcado ? "checked" : ""}>
+        <label style="margin:0" for="pago_${docSnap.id}">${r.titulo} — $${r.precio} MXN</label>
+      `;
+      listaPagos.appendChild(row);
+    });
+  }
+
+  modalPagos.classList.remove("hidden");
+}
+
+btnCerrarPagos.addEventListener("click", () => {
+  modalPagos.classList.add("hidden");
+  usuarioPagosActualId = null;
+});
+
+btnGuardarPagos.addEventListener("click", async () => {
+  if (!usuarioPagosActualId) return;
+  const seleccionados = [...listaPagos.querySelectorAll("input[type=checkbox]:checked")].map(el => el.value);
+
+  try {
+    await updateDoc(doc(db, "usuarios", usuarioPagosActualId), { recursosComprados: seleccionados });
+    modalPagos.classList.add("hidden");
+    usuarioPagosActualId = null;
+  } catch (err) {
+    alert("Error al guardar: " + err.message);
+  }
+});
