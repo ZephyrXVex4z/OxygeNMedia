@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ayuda Escolar</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5b8def">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #0f1420;
+    --card: #1a2233;
+    --border: #2a3550;
+    --accent: #5b8def;
+    --accent-hover: #4a7ad9;
+    --text: #e8ecf5;
+    --text-dim: #8b96b0;
+    --danger: #e35d5d;
+    --success: #4caf7d;
+    --warn: #e0a941;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 18px;
+    margin: 0;
+  }
+  header .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:hover { background: var(--accent-hover); }
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  button.secondary:hover { background: var(--card); }
+  .container {
+    max-width: 480px;
+    margin: 60px auto;
+    padding: 0 20px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+  }
+  .card h2 { margin-top: 0; }
+  input, select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #10182a;
+    color: var(--text);
+    font-size: 14px;
+  }
+  label {
+    font-size: 13px;
+    color: var(--text-dim);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .error-msg {
+    background: rgba(227, 93, 93, 0.12);
+    color: var(--danger);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .toggle-link {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  .toggle-link a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .pending-box {
+    text-align: center;
+  }
+  .pending-box .icon { font-size: 40px; margin-bottom: 12px; }
+  .hidden { display: none !important; }
+
+  /* Vista de recursos */
+  .main-content { max-width: 900px; margin: 32px auto; padding: 0 20px; }
+  .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filters select { width: auto; margin-bottom: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .resource-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .resource-card h3 { margin: 0 0 8px 0; font-size: 16px; }
+  .resource-card p { color: var(--text-dim); font-size: 13px; margin: 0 0 12px 0; }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    margin-right: 6px;
+    margin-bottom: 8px;
+  }
+  .badge.gratis { background: rgba(76, 175, 125, 0.15); color: var(--success); }
+  .badge.pago { background: rgba(224, 169, 65, 0.15); color: var(--warn); }
+  .badge.categoria { background: rgba(91, 141, 239, 0.15); color: var(--accent); }
+  .empty-state { text-align: center; color: var(--text-dim); padding: 60px 20px; }
+</style>
+</head>
+<body>
+
+  <header>
+    <h1>📚 Ayuda Escolar</h1>
+    <div class="user-info" id="userInfo"></div>
+  </header>
+
+  <!-- Vista: Login / Registro -->
+  <div class="container" id="authView">
+    <div class="card">
+      <h2 id="authTitle">Iniciar sesión</h2>
+      <div class="error-msg" id="authError"></div>
+
+      <div id="nombreField" class="hidden">
+        <label>Nombre completo</label>
+        <input type="text" id="inputNombre" placeholder="Tu nombre">
+      </div>
+
+      <label>Correo</label>
+      <input type="email" id="inputEmail" placeholder="tucorreo@ejemplo.com">
+
+      <label>Contraseña</label>
+      <input type="password" id="inputPassword" placeholder="••••••••">
+
+      <button id="btnSubmitAuth" style="width:100%">Entrar</button>
+
+      <div class="toggle-link">
+        <span id="toggleText">¿No tienes cuenta?</span>
+        <a id="toggleLink">Solicitar acceso</a>
+      </div>
+
+      <div class="toggle-link" style="margin-top:8px;">
+        <a href="https://wa.me/529844681306?text=Hola%2C%20quisiera%20solicitar%20acceso%20a%20Ayuda%20Escolar" target="_blank" style="color:#4caf7d;">
+          📱 Solicitar acceso privado por WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vista: Pendiente de aprobación -->
+  <div class="container hidden" id="pendingView">
+    <div class="card pending-box">
+      <div class="icon">⏳</div>
+      <h2>Tu cuenta está pendiente</h2>
+      <p style="color:var(--text-dim)">Un administrador debe aprobar tu acceso. Vuelve a intentar más tarde o pregúntale directamente.</p>
+      <button class="secondary" id="btnLogoutPending">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <!-- Vista: Recursos (usuarios aprobados) -->
+  <div class="main-content hidden" id="resourcesView">
+    <div class="filters">
+      <select id="filtroCategoria">
+        <option value="">Todas las categorías</option>
+      </select>
+      <select id="filtroTipo">
+        <option value="">Gratis y de paga</option>
+        <option value="gratis">Solo gratis</option>
+        <option value="pago">Solo de paga</option>
+      </select>
+    </div>
+    <div class="grid" id="resourceGrid"></div>
+    <div class="empty-state hidden" id="emptyState">No hay recursos disponibles todavía.</div>
+  </div>
+
+<script type="module">
+import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth } from "./auth.js";
+import { cargarRecursos } from "./app.js";
+
+let modoRegistro = false;
+
+const authView = document.getElementById("authView");
+const pendingView = document.getElementById("pendingView");
+const resourcesView = document.getElementById("resourcesView");
+const userInfo = document.getElementById("userInfo");
+
+const authTitle = document.getElementById("authTitle");
+const authError = document.getElementById("authError");
+const nombreField = document.getElementById("nombreField");
+const inputNombre = document.getElementById("inputNombre");
+const inputEmail = document.getElementById("inputEmail");
+const inputPassword = document.getElementById("inputPassword");
+const btnSubmitAuth = document.getElementById("btnSubmitAuth");
+const toggleLink = document.getElementById("toggleLink");
+const toggleText = document.getElementById("toggleText");
+
+function mostrarError(msg) {
+  authError.textContent = msg;
+  authError.style.display = "block";
+}
+function ocultarError() {
+  authError.style.display = "none";
+}
+
+toggleLink.addEventListener("click", () => {
+  modoRegistro = !modoRegistro;
+  ocultarError();
+  if (modoRegistro) {
+    authTitle.textContent = "Solicitar acceso";
+    nombreField.classList.remove("hidden");
+    btnSubmitAuth.textContent = "Solicitar acceso";
+    toggleText.textContent = "¿Ya tienes cuenta?";
+    toggleLink.textContent = "Iniciar sesión";
+  } else {
+    authTitle.textContent = "Iniciar sesión";
+    nombreField.classList.add("hidden");
+    btnSubmitAuth.textContent = "Entrar";
+    toggleText.textContent = "¿No tienes cuenta?";
+    toggleLink.textContent = "Solicitar acceso";
+  }
+});
+
+btnSubmitAuth.addEventListener("click", async () => {
+  ocultarError();
+  const email = inputEmail.value.trim();
+  const password = inputPassword.value;
+
+  if (!email || !password) {
+    mostrarError("Completa correo y contraseña.");
+    return;
+  }
+
+  btnSubmitAuth.disabled = true;
+  try {
+    if (modoRegistro) {
+      const nombre = inputNombre.value.trim();
+      if (!nombre) {
+        mostrarError("Escribe tu nombre.");
+        btnSubmitAuth.disabled = false;
+        return;
+      }
+      await registrarUsuario(nombre, email, password);
+    } else {
+      await iniciarSesion(email, password);
+    }
+    // observarSesion se encarga de refrescar la vista automáticamente
+  } catch (err) {
+    mostrarError(traducirErrorAuth(err));
+  }
+  btnSubmitAuth.disabled = false;
+});
+
+document.getElementById("btnLogoutPending").addEventListener("click", cerrarSesion);
+
+function mostrarSoloVista(vista) {
+  authView.classList.add("hidden");
+  pendingView.classList.add("hidden");
+  resourcesView.classList.add("hidden");
+  vista.classList.remove("hidden");
+}
+
+observarSesion((user, perfil) => {
+  if (!user) {
+    userInfo.innerHTML = "";
+    mostrarSoloVista(authView);
+    return;
+  }
+
+  if (!perfil || perfil.aprobado !== true) {
+    userInfo.innerHTML = `<span>${perfil ? perfil.nombre : ""}</span> <button class="secondary" onclick="location.reload()">↻</button>`;
+    mostrarSoloVista(pendingView);
+    return;
+  }
+
+  userInfo.innerHTML = `
+    <span>👋 ${perfil.nombre}</span>
+    <a href="chat.html"><button class="secondary">💬 Chat</button></a>
+    ${perfil.rol === "admin" ? '<a href="admin.html"><button class="secondary">Panel Admin</button></a>' : ""}
+    <button class="secondary" id="btnLogout">Salir</button>
+  `;
+  document.getElementById("btnLogout").addEventListener("click", cerrarSesion);
+
+  mostrarSoloVista(resourcesView);
+  cargarRecursos(perfil);
+});
+</script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
