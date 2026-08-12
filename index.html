@@ -3,11 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zephyr | OxygeNMedia</title>
-  <link rel="icon" type="image/x-icon" href="./favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
-<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>OxygeN | Media</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b8def">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -177,7 +173,7 @@
 
       <div class="toggle-link" style="margin-top:8px;">
         <a href="https://wa.me/529844681306?text=Hola%2C%20quisiera%20solicitar%20acceso%20a%20Ayuda%20Escolar" target="_blank" style="color:#4caf7d;">
-          📱 Solicitar acceso privado por WhatsApp
+          📱 Solicitar acceso por WhatsApp
         </a>
       </div>
     </div>
@@ -195,6 +191,7 @@
 
   <!-- Vista: Recursos (usuarios aprobados) -->
   <div class="main-content hidden" id="resourcesView">
+    <input type="text" id="buscarRecurso" placeholder="🔍 Buscar por título o descripción..." style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#10182a; color:var(--text); font-size:14px; margin-bottom:14px;">
     <div class="filters">
       <select id="filtroCategoria">
         <option value="">Todas las categorías</option>
@@ -309,7 +306,7 @@ observarSesion((user, perfil) => {
   }
 
   userInfo.innerHTML = `
-    <span>👋 ${perfil.nombre}</span>
+    <span>👤 ${perfil.nombre}</span>
     <a href="chat.html"><button class="secondary">💬 Chat</button></a>
     ${perfil.rol === "admin" ? '<a href="admin.html"><button class="secondary">Panel Admin</button></a>' : ""}
     <button class="secondary" id="btnLogout">Salir</button>
