@@ -46,6 +46,8 @@ const rDescripcion = document.getElementById("rDescripcion");
 const rContenido = document.getElementById("rContenido");
 const rCategoria = document.getElementById("rCategoria");
 const rPrecio = document.getElementById("rPrecio");
+const rImagenURL = document.getElementById("rImagenURL");
+const rImagenPreview = document.getElementById("rImagenPreview");
 const rGratis = document.getElementById("rGratis");
 const rPublico = document.getElementById("rPublico");
 const rVisible = document.getElementById("rVisible");
@@ -61,6 +63,17 @@ function mostrarMsg(el, texto, tipo) {
   setTimeout(() => { el.style.display = "none"; }, 3000);
 }
 
+const rImagenURL_input = rImagenURL;
+rImagenURL_input.addEventListener("input", () => {
+  const url = rImagenURL_input.value.trim();
+  if (url) {
+    rImagenPreview.src = url;
+    rImagenPreview.classList.remove("hidden");
+  } else {
+    rImagenPreview.classList.add("hidden");
+  }
+});
+
 function limpiarFormRecurso() {
   recursoId.value = "";
   rTitulo.value = "";
@@ -68,6 +81,8 @@ function limpiarFormRecurso() {
   rContenido.value = "";
   rCategoria.value = "";
   rPrecio.value = "";
+  rImagenURL.value = "";
+  rImagenPreview.classList.add("hidden");
   rGratis.checked = false;
   rPublico.checked = false;
   rVisible.checked = true;
@@ -89,6 +104,7 @@ document.getElementById("btnGuardarRecurso").addEventListener("click", async () 
     contenido: rContenido.value.trim(),
     categoria: rCategoria.value.trim() || "General",
     precio: Number(rPrecio.value) || 0,
+    imagenURL: rImagenURL.value.trim(),
     esGratis: rGratis.checked,
     esPublico: rPublico.checked,
     visible: rVisible.checked
@@ -149,6 +165,13 @@ async function cargarRecursos() {
         rContenido.value = r.contenido || "";
         rCategoria.value = r.categoria || "";
         rPrecio.value = r.precio || "";
+        rImagenURL.value = r.imagenURL || "";
+        if (r.imagenURL) {
+          rImagenPreview.src = r.imagenURL;
+          rImagenPreview.classList.remove("hidden");
+        } else {
+          rImagenPreview.classList.add("hidden");
+        }
         rGratis.checked = !!r.esGratis;
         rPublico.checked = !!r.esPublico;
         rVisible.checked = r.visible !== false;
