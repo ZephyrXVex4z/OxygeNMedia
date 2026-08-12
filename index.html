@@ -167,6 +167,12 @@
         <span id="toggleText">¿No tienes cuenta?</span>
         <a id="toggleLink">Solicitar acceso</a>
       </div>
+
+      <div class="toggle-link" style="margin-top:8px;">
+        <a href="https://wa.me/529844681306?text=Hola%2C%20quisiera%20solicitar%20acceso%20a%20Ayuda%20Escolar" target="_blank" style="color:#4caf7d;">
+          📱 Solicitar acceso privado por WhatsApp
+        </a>
+      </div>
     </div>
   </div>
 
@@ -297,6 +303,7 @@ observarSesion((user, perfil) => {
 
   userInfo.innerHTML = `
     <span>👋 ${perfil.nombre}</span>
+    <a href="chat.html"><button class="secondary">💬 Chat</button></a>
     ${perfil.rol === "admin" ? '<a href="admin.html"><button class="secondary">Panel Admin</button></a>' : ""}
     <button class="secondary" id="btnLogout">Salir</button>
   `;
