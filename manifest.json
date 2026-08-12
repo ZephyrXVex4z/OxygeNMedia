@@ -1,7 +1,7 @@
 {
-  "name": "Ayuda Escolar",
-  "short_name": "Ayuda Escolar",
-  "description": "Foro y recursos escolares con chat integrado",
+  "name": "OxygeNMedia",
+  "short_name": "OxygeNMedia",
+  "description": "Private school website",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
