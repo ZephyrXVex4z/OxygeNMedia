@@ -67,6 +67,7 @@ function render() {
     }
 
     card.innerHTML = `
+      ${r.imagenURL ? `<img src="${r.imagenURL}" alt="${r.titulo}" style="width:100%; height:140px; object-fit:cover; border-radius:8px; margin-bottom:10px;" onerror="this.style.display='none'">` : ""}
       <div>
         <span class="badge categoria">${r.categoria || "General"}</span>
         <span class="badge ${r.esGratis ? "gratis" : "pago"}">${r.esGratis ? "Gratis" : "$" + r.precio + " MXN"}</span>
@@ -83,7 +84,24 @@ function render() {
 window.verDetalle = function(id) {
   const r = todosLosRecursos.find(x => x.id === id);
   if (!r) return;
-  alert(r.titulo + "\n\n" + (r.contenido || "Este recurso aún no tiene contenido cargado."));
+
+  let modal = document.getElementById("detalleModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "detalleModal";
+    modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;";
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div style="background:#1a2233;border:1px solid #2a3550;border-radius:14px;padding:24px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;">
+      ${r.imagenURL ? `<img src="${r.imagenURL}" style="width:100%;border-radius:10px;margin-bottom:14px;" onerror="this.style.display='none'">` : ""}
+      <h2 style="margin-top:0;">${r.titulo}</h2>
+      <p style="white-space:pre-wrap;color:#e8ecf5;">${r.contenido || "Este recurso aún no tiene contenido cargado."}</p>
+      <button onclick="document.getElementById('detalleModal').remove()" style="margin-top:10px;">Cerrar</button>
+    </div>
+  `;
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 };
 
 filtroCategoria.addEventListener("change", render);
