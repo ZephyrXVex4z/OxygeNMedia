@@ -92,5 +92,28 @@ service cloud.firestore {
                       request.resource.data.autorId == request.auth.uid;
       }
     }
+    match /sugerencias/{sugerenciaId} {
+      function esAprobado() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdmin() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
+      // Cualquier usuario aprobado puede leer todas las sugerencias (es tipo foro)
+      allow read: if esAprobado() || esAdmin();
+
+      // Cualquier usuario aprobado puede crear una sugerencia.
+      // Si es anónima, autorId debe ser null (no puede fingir ser otro usuario).
+      // Si no es anónima, autorId debe ser su propio uid (no puede poner el de otro).
+      allow create: if esAprobado() &&
+                      (request.resource.data.autorId == null ||
+                       request.resource.data.autorId == request.auth.uid);
+
+      // Solo el admin puede cambiar el estado (pendiente/revisada) o borrar
+      allow update, delete: if esAdmin();
+    }
   }
 }
