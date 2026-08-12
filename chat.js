@@ -38,6 +38,10 @@ observarSesion((user, perfil) => {
 // ============ LISTA DE CHATS (tiempo real) ============
 
 function escucharListaChats() {
+  const params = new URLSearchParams(location.search);
+  const chatIdParaAbrir = params.get("abrir");
+  let yaAutoAbrio = false;
+
   const q = query(
     collection(db, "chats"),
     where("miembros", "array-contains", usuarioActual.uid),
@@ -70,6 +74,21 @@ function escucharListaChats() {
       item.addEventListener("click", () => abrirChat(docSnap.id, c, nombreMostrar));
       chatList.appendChild(item);
     });
+
+    // Si venimos de "Enviar mensaje" desde un perfil, abre ese chat automáticamente (una sola vez)
+    if (chatIdParaAbrir && !yaAutoAbrio) {
+      const encontrado = snap.docs.find(d => d.id === chatIdParaAbrir);
+      if (encontrado) {
+        yaAutoAbrio = true;
+        const c = encontrado.data();
+        let nombreMostrar = c.nombre;
+        if (c.tipo === "privado") {
+          const otroUid = c.miembros.find(m => m !== usuarioActual.uid);
+          nombreMostrar = c.nombresUsuarios?.[otroUid] || "Chat privado";
+        }
+        abrirChat(encontrado.id, c, nombreMostrar);
+      }
+    }
   });
 }
 
