@@ -4,8 +4,8 @@
 import { db } from "./firebase-config.js";
 import { observarSesion, cerrarSesion } from "./auth.js";
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc, getDocs,
-  query, where, orderBy, serverTimestamp
+  collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, setDoc,
+  query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
 const deniedView = document.getElementById("deniedView");
@@ -48,6 +48,8 @@ const rCategoria = document.getElementById("rCategoria");
 const rPrecio = document.getElementById("rPrecio");
 const rImagenURL = document.getElementById("rImagenURL");
 const rImagenPreview = document.getElementById("rImagenPreview");
+const rImagenContenidoURL = document.getElementById("rImagenContenidoURL");
+const rImagenContenidoPreview = document.getElementById("rImagenContenidoPreview");
 const rGratis = document.getElementById("rGratis");
 const rPublico = document.getElementById("rPublico");
 const rVisible = document.getElementById("rVisible");
@@ -74,6 +76,16 @@ rImagenURL_input.addEventListener("input", () => {
   }
 });
 
+rImagenContenidoURL.addEventListener("input", () => {
+  const url = rImagenContenidoURL.value.trim();
+  if (url) {
+    rImagenContenidoPreview.src = url;
+    rImagenContenidoPreview.classList.remove("hidden");
+  } else {
+    rImagenContenidoPreview.classList.add("hidden");
+  }
+});
+
 function limpiarFormRecurso() {
   recursoId.value = "";
   rTitulo.value = "";
@@ -83,6 +95,8 @@ function limpiarFormRecurso() {
   rPrecio.value = "";
   rImagenURL.value = "";
   rImagenPreview.classList.add("hidden");
+  rImagenContenidoURL.value = "";
+  rImagenContenidoPreview.classList.add("hidden");
   rGratis.checked = false;
   rPublico.checked = false;
   rVisible.checked = true;
@@ -98,10 +112,9 @@ document.getElementById("btnGuardarRecurso").addEventListener("click", async () 
     return;
   }
 
-  const data = {
+  const dataPublica = {
     titulo: rTitulo.value.trim(),
     descripcion: rDescripcion.value.trim(),
-    contenido: rContenido.value.trim(),
     categoria: rCategoria.value.trim() || "General",
     precio: Number(rPrecio.value) || 0,
     imagenURL: rImagenURL.value.trim(),
@@ -110,15 +123,26 @@ document.getElementById("btnGuardarRecurso").addEventListener("click", async () 
     visible: rVisible.checked
   };
 
+  const dataProtegida = {
+    contenido: rContenido.value.trim(),
+    imagenContenidoURL: rImagenContenidoURL.value.trim()
+  };
+
   try {
-    if (recursoId.value) {
-      await updateDoc(doc(db, "recursos", recursoId.value), data);
+    let idUsado = recursoId.value;
+    if (idUsado) {
+      await updateDoc(doc(db, "recursos", idUsado), dataPublica);
       mostrarMsg(msgRecurso, "Recurso actualizado.", "ok");
     } else {
-      data.fechaSubida = serverTimestamp();
-      await addDoc(collection(db, "recursos"), data);
+      dataPublica.fechaSubida = serverTimestamp();
+      dataPublica.compradoPor = [];
+      const ref = await addDoc(collection(db, "recursos"), dataPublica);
+      idUsado = ref.id;
       mostrarMsg(msgRecurso, "Recurso creado.", "ok");
     }
+    // El contenido protegido siempre vive en el mismo documento fijo "data" dentro de la subcolección
+    await setDoc(doc(db, "recursos", idUsado, "contenidoProtegido", "data"), dataProtegida);
+
     limpiarFormRecurso();
     cargarRecursos();
   } catch (err) {
@@ -157,12 +181,11 @@ async function cargarRecursos() {
   tbody.querySelectorAll("[data-edit]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const snap2 = await getDocs(query(collection(db, "recursos"), where("__name__", "==", btn.dataset.edit)));
-      snap2.forEach(d => {
+      for (const d of snap2.docs) {
         const r = d.data();
         recursoId.value = d.id;
         rTitulo.value = r.titulo || "";
         rDescripcion.value = r.descripcion || "";
-        rContenido.value = r.contenido || "";
         rCategoria.value = r.categoria || "";
         rPrecio.value = r.precio || "";
         rImagenURL.value = r.imagenURL || "";
@@ -172,15 +195,29 @@ async function cargarRecursos() {
         } else {
           rImagenPreview.classList.add("hidden");
         }
+
+        // El contenido protegido vive en una subcolección aparte
+        const protegidoSnap = await getDoc(doc(db, "recursos", d.id, "contenidoProtegido", "data"));
+        const protegido = protegidoSnap.exists() ? protegidoSnap.data() : {};
+        rContenido.value = protegido.contenido || "";
+        rImagenContenidoURL.value = protegido.imagenContenidoURL || "";
+        if (protegido.imagenContenidoURL) {
+          rImagenContenidoPreview.src = protegido.imagenContenidoURL;
+          rImagenContenidoPreview.classList.remove("hidden");
+        } else {
+          rImagenContenidoPreview.classList.add("hidden");
+        }
+
         rGratis.checked = !!r.esGratis;
         rPublico.checked = !!r.esPublico;
         rVisible.checked = r.visible !== false;
         formTitulo.textContent = "Editando: " + r.titulo;
         btnCancelarEdicion.classList.remove("hidden");
         window.scrollTo({ top: 0, behavior: "smooth" });
-      });
+      }
     });
   });
+
 
   tbody.querySelectorAll("[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -293,6 +330,7 @@ const btnGuardarPagos = document.getElementById("btnGuardarPagos");
 const btnCerrarPagos = document.getElementById("btnCerrarPagos");
 
 let usuarioPagosActualId = null;
+let usuarioPagosComprasAnteriores = [];
 
 async function abrirModalPagos(userId, filaTr) {
   usuarioPagosActualId = userId;
@@ -305,6 +343,7 @@ async function abrirModalPagos(userId, filaTr) {
 
   pagosUsuarioNombre.textContent = "Recursos pagados — " + usuarioData.nombre;
   const comprados = usuarioData.recursosComprados || [];
+  usuarioPagosComprasAnteriores = comprados;
 
   // Solo recursos de paga (esGratis === false)
   const recursosSnap = await getDocs(query(collection(db, "recursos"), where("esGratis", "==", false)));
@@ -337,9 +376,23 @@ btnCerrarPagos.addEventListener("click", () => {
 btnGuardarPagos.addEventListener("click", async () => {
   if (!usuarioPagosActualId) return;
   const seleccionados = [...listaPagos.querySelectorAll("input[type=checkbox]:checked")].map(el => el.value);
+  const anteriores = usuarioPagosComprasAnteriores || [];
+
+  const agregados = seleccionados.filter(id => !anteriores.includes(id));
+  const quitados = anteriores.filter(id => !seleccionados.includes(id));
 
   try {
+    // 1. Actualiza el array del usuario (para que el admin vea fácil qué compró)
     await updateDoc(doc(db, "usuarios", usuarioPagosActualId), { recursosComprados: seleccionados });
+
+    // 2. Actualiza compradoPor en cada recurso afectado (esto es lo que valida la regla de seguridad)
+    for (const recursoId of agregados) {
+      await updateDoc(doc(db, "recursos", recursoId), { compradoPor: arrayUnion(usuarioPagosActualId) });
+    }
+    for (const recursoId of quitados) {
+      await updateDoc(doc(db, "recursos", recursoId), { compradoPor: arrayRemove(usuarioPagosActualId) });
+    }
+
     modalPagos.classList.add("hidden");
     usuarioPagosActualId = null;
   } catch (err) {
