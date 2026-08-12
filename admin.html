@@ -3,11 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin panel — 💫 OxygeNMedia</title>
-  <link rel="icon" type="image/x-icon" href="./favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
-<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>Panel Admin — OxygeNMedia</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b8def">
 <style>
@@ -122,6 +118,7 @@
     <div class="tab active" data-tab="recursos">Recursos</div>
     <div class="tab" data-tab="usuarios">Usuarios pendientes</div>
     <div class="tab" data-tab="todos">Todos los usuarios</div>
+    <div class="tab" data-tab="roles">Roles pendientes</div>
   </div>
 
   <div class="content">
@@ -209,6 +206,18 @@
           <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody id="tablaTodos"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- TAB: Roles pendientes -->
+    <div id="tabRoles" class="hidden">
+      <div class="card">
+        <h3>Roles de perfil propuestos por usuarios</h3>
+        <table>
+          <thead><tr><th>Rol</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaRolesPendientes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyRoles">No hay roles pendientes de aprobación.</div>
       </div>
     </div>
 
