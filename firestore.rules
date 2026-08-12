@@ -21,9 +21,38 @@ service cloud.firestore {
                       request.resource.data.aprobado == false &&
                       request.resource.data.rol == "estudiante";
 
-      // Solo el admin puede aprobar, cambiar roles, marcar pagos, o borrar usuarios
+      // Un usuario puede editar SU PROPIO perfil (nombre, username, foto, descripción,
+      // proponer roles), siempre que NO cambie campos sensibles del sistema
+      allow update: if request.auth != null && request.auth.uid == userId &&
+                      request.resource.data.aprobado == resource.data.aprobado &&
+                      request.resource.data.rol == resource.data.rol;
+
+      // Solo el admin puede aprobar, cambiar roles de sistema, marcar pagos,
+      // aprobar rolesPerfil, o borrar usuarios (sin restricción de campos)
       allow update, delete: if request.auth != null &&
                     get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+    }
+
+    match /rolesDisponibles/{rolId} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
+      // Cualquier usuario aprobado puede ver la lista de roles (para elegir/proponer)
+      allow read: if esAprobadoUsuario() || esAdminUsuario();
+
+      // Cualquier usuario aprobado puede proponer un rol nuevo, queda como no aprobado
+      allow create: if esAprobadoUsuario() &&
+                      request.resource.data.aprobado == false &&
+                      request.resource.data.creadoPor == request.auth.uid;
+
+      // Solo el admin puede aprobar o borrar roles
+      allow update, delete: if esAdminUsuario();
     }
 
     match /recursos/{recursoId} {
