@@ -19,6 +19,7 @@ const grid = document.getElementById("resourceGrid");
 const emptyState = document.getElementById("emptyState");
 const filtroCategoria = document.getElementById("filtroCategoria");
 const filtroTipo = document.getElementById("filtroTipo");
+const buscarRecurso = document.getElementById("buscarRecurso");
 
 export async function cargarRecursos(perfil) {
   perfilActual = perfil;
@@ -45,16 +46,27 @@ function poblarFiltroCategorias() {
 function render() {
   const catSeleccionada = filtroCategoria.value;
   const tipoSeleccionado = filtroTipo.value;
+  const textoBusqueda = buscarRecurso.value.trim().toLowerCase();
 
   let lista = todosLosRecursos.filter(r => {
     if (catSeleccionada && r.categoria !== catSeleccionada) return false;
     if (tipoSeleccionado === "gratis" && !r.esGratis) return false;
     if (tipoSeleccionado === "pago" && r.esGratis) return false;
+    if (textoBusqueda) {
+      const titulo = (r.titulo || "").toLowerCase();
+      const descripcion = (r.descripcion || "").toLowerCase();
+      if (!titulo.includes(textoBusqueda) && !descripcion.includes(textoBusqueda)) return false;
+    }
     return true;
   });
 
   grid.innerHTML = "";
   emptyState.classList.toggle("hidden", lista.length > 0);
+  if (lista.length === 0) {
+    emptyState.textContent = (textoBusqueda || catSeleccionada || tipoSeleccionado)
+      ? "No se encontraron recursos con esos filtros."
+      : "No hay recursos disponibles todavía.";
+  }
 
   lista.forEach(r => {
     const yaComprado = (perfilActual.recursosComprados || []).includes(r.id);
@@ -130,3 +142,9 @@ window.verDetalle = async function(id) {
 
 filtroCategoria.addEventListener("change", render);
 filtroTipo.addEventListener("change", render);
+
+let debounceBusqueda = null;
+buscarRecurso.addEventListener("input", () => {
+  clearTimeout(debounceBusqueda);
+  debounceBusqueda = setTimeout(render, 150);
+});
