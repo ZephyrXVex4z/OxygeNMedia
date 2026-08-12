@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OxygeN | Media</title>
+<title>OxygeNMedia</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b8def">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -173,7 +173,7 @@
 
       <div class="toggle-link" style="margin-top:8px;">
         <a href="https://wa.me/529844681306?text=Hola%2C%20quisiera%20solicitar%20acceso%20a%20Ayuda%20Escolar" target="_blank" style="color:#4caf7d;">
-          📱 Solicitar acceso por WhatsApp
+          📱 Solicitar acceso privado por WhatsApp
         </a>
       </div>
     </div>
@@ -308,6 +308,7 @@ observarSesion((user, perfil) => {
   userInfo.innerHTML = `
     <span>👤 ${perfil.nombre}</span>
     <a href="chat.html"><button class="secondary">💬 Chat</button></a>
+    <a href="sugerencias.html"><button class="secondary">💡 Sugerencias</button></a>
     ${perfil.rol === "admin" ? '<a href="admin.html"><button class="secondary">Panel Admin</button></a>' : ""}
     <button class="secondary" id="btnLogout">Salir</button>
   `;
