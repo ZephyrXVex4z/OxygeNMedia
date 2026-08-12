@@ -139,6 +139,11 @@
             <label>Contenido completo (solo visible si tiene acceso)</label>
             <textarea id="rContenido" placeholder="Aquí va el contenido real: respuestas, información, enlaces, etc."></textarea>
           </div>
+          <div class="full">
+            <label>URL de imagen del contenido (opcional — solo se ve si el usuario tiene acceso, ej. foto de apuntes/respuestas)</label>
+            <input type="text" id="rImagenContenidoURL" placeholder="https://i.imgur.com/ejemplo.jpg">
+            <img id="rImagenContenidoPreview" class="hidden" style="max-width:100%; max-height:160px; border-radius:8px; margin-top:6px; margin-bottom:10px; object-fit:cover;">
+          </div>
           <div>
             <label>Categoría</label>
             <input type="text" id="rCategoria" placeholder="Ej. Química, Matemáticas">
@@ -148,7 +153,7 @@
             <input type="number" id="rPrecio" placeholder="0" min="0">
           </div>
           <div class="full">
-            <label>URL de imagen (opcional — pega un link de Imgur u otro servicio)</label>
+            <label>URL de imagen de portada (opcional — esta SÍ se ve siempre, sin pagar, es la miniatura de la tarjeta)</label>
             <input type="text" id="rImagenURL" placeholder="https://i.imgur.com/ejemplo.jpg">
             <img id="rImagenPreview" class="hidden" style="max-width:100%; max-height:160px; border-radius:8px; margin-top:6px; margin-bottom:10px; object-fit:cover;">
           </div>
