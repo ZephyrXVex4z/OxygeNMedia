@@ -7,6 +7,8 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
+  doc,
   orderBy
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
@@ -81,7 +83,7 @@ function render() {
 }
 
 // Muestra el contenido completo de un recurso (una vez que es accesible)
-window.verDetalle = function(id) {
+window.verDetalle = async function(id) {
   const r = todosLosRecursos.find(x => x.id === id);
   if (!r) return;
 
@@ -95,9 +97,31 @@ window.verDetalle = function(id) {
 
   modal.innerHTML = `
     <div style="background:#1a2233;border:1px solid #2a3550;border-radius:14px;padding:24px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;">
-      ${r.imagenURL ? `<img src="${r.imagenURL}" style="width:100%;border-radius:10px;margin-bottom:14px;" onerror="this.style.display='none'">` : ""}
       <h2 style="margin-top:0;">${r.titulo}</h2>
-      <p style="white-space:pre-wrap;color:#e8ecf5;">${r.contenido || "Este recurso aún no tiene contenido cargado."}</p>
+      <p style="color:#8b96b0;">Cargando contenido...</p>
+    </div>
+  `;
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  // El contenido real solo se pide aquí, en el momento de abrir —
+  // y Firestore decide si te lo entrega según sus propias reglas de seguridad
+  let contenido = "";
+  let imagenContenidoURL = "";
+  try {
+    const snap = await getDoc(doc(db, "recursos", id, "contenidoProtegido", "data"));
+    if (snap.exists()) {
+      contenido = snap.data().contenido || "";
+      imagenContenidoURL = snap.data().imagenContenidoURL || "";
+    }
+  } catch (err) {
+    contenido = "No tienes acceso a este contenido todavía.";
+  }
+
+  modal.innerHTML = `
+    <div style="background:#1a2233;border:1px solid #2a3550;border-radius:14px;padding:24px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto;">
+      <h2 style="margin-top:0;">${r.titulo}</h2>
+      ${imagenContenidoURL ? `<img src="${imagenContenidoURL}" style="width:100%;border-radius:10px;margin-bottom:14px;" onerror="this.style.display='none'">` : ""}
+      <p style="white-space:pre-wrap;color:#e8ecf5;">${contenido || "Este recurso aún no tiene contenido cargado."}</p>
       <button onclick="document.getElementById('detalleModal').remove()" style="margin-top:10px;">Cerrar</button>
     </div>
   `;
