@@ -308,6 +308,7 @@ observarSesion((user, perfil) => {
   userInfo.innerHTML = `
     <span>👤 ${perfil.nombre}</span>
     <a href="perfil.html"><button class="secondary">👤 Mi perfil</button></a>
+    <a href="ver-perfil.html"><button class="secondary">🔎 Perfiles</button></a>
     <a href="chat.html"><button class="secondary">💬 Chat</button></a>
     <a href="sugerencias.html"><button class="secondary">💡 Sugerencias</button></a>
     ${perfil.rol === "admin" ? '<a href="admin.html"><button class="secondary">Panel Admin</button></a>' : ""}
