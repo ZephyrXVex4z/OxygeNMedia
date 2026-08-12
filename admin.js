@@ -25,6 +25,7 @@ observarSesion((user, perfil) => {
   cargarRecursos();
   cargarPendientes();
   cargarTodos();
+  cargarRolesPendientes();
 });
 
 // --- Tabs ---
@@ -35,6 +36,7 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("tabRecursos").classList.add("hidden");
     document.getElementById("tabUsuarios").classList.add("hidden");
     document.getElementById("tabTodos").classList.add("hidden");
+    document.getElementById("tabRoles").classList.add("hidden");
     document.getElementById("tab" + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).classList.remove("hidden");
   });
 });
@@ -399,3 +401,46 @@ btnGuardarPagos.addEventListener("click", async () => {
     alert("Error al guardar: " + err.message);
   }
 });
+
+// ============ ROLES PENDIENTES ============
+
+async function cargarRolesPendientes() {
+  const snap = await getDocs(query(collection(db, "rolesDisponibles"), where("aprobado", "==", false)));
+  const tbody = document.getElementById("tablaRolesPendientes");
+  const empty = document.getElementById("emptyRoles");
+  tbody.innerHTML = "";
+
+  if (snap.empty) {
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  snap.forEach(docSnap => {
+    const r = docSnap.data();
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.nombre}</td>
+      <td class="row-actions">
+        <button class="success" data-approve-rol="${docSnap.id}">Aprobar</button>
+        <button class="danger" data-reject-rol="${docSnap.id}">Rechazar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("[data-approve-rol]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await updateDoc(doc(db, "rolesDisponibles", btn.dataset.approveRol), { aprobado: true });
+      cargarRolesPendientes();
+    });
+  });
+
+  tbody.querySelectorAll("[data-reject-rol]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Rechazar este rol propuesto?")) return;
+      await deleteDoc(doc(db, "rolesDisponibles", btn.dataset.rejectRol));
+      cargarRolesPendientes();
+    });
+  });
+}
