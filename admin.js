@@ -26,6 +26,7 @@ observarSesion((user, perfil) => {
   cargarPendientes();
   cargarTodos();
   cargarRolesPendientes();
+  cargarJuegosPendientesAdmin();
 });
 
 // --- Tabs ---
@@ -37,6 +38,7 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("tabUsuarios").classList.add("hidden");
     document.getElementById("tabTodos").classList.add("hidden");
     document.getElementById("tabRoles").classList.add("hidden");
+    document.getElementById("tabJuegos").classList.add("hidden");
     document.getElementById("tab" + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).classList.remove("hidden");
   });
 });
@@ -441,6 +443,62 @@ async function cargarRolesPendientes() {
       if (!confirm("¿Rechazar este rol propuesto?")) return;
       await deleteDoc(doc(db, "rolesDisponibles", btn.dataset.rejectRol));
       cargarRolesPendientes();
+    });
+  });
+}
+
+// ============ JUEGOS PENDIENTES ============
+
+async function cargarJuegosPendientesAdmin() {
+  const snap = await getDocs(query(collection(db, "juegos"), where("aprobado", "==", false)));
+  const tbody = document.getElementById("tablaJuegosPendientes");
+  const empty = document.getElementById("emptyJuegosAdmin");
+  tbody.innerHTML = "";
+
+  if (snap.empty) {
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  snap.forEach(docSnap => {
+    const j = docSnap.data();
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${j.nombre}</td>
+      <td>${j.subidoPorNombre}</td>
+      <td class="row-actions">
+        <button class="secondary" data-probar-juego="${docSnap.id}">Probar</button>
+        <button class="success" data-approve-juego="${docSnap.id}">Aprobar</button>
+        <button class="danger" data-reject-juego="${docSnap.id}">Rechazar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("[data-probar-juego]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const snap2 = await getDocs(query(collection(db, "juegos"), where("__name__", "==", btn.dataset.probarJuego)));
+      snap2.forEach(d => {
+        const j = d.data();
+        const w = window.open("", "_blank");
+        w.document.write(j.html);
+      });
+    });
+  });
+
+  tbody.querySelectorAll("[data-approve-juego]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await updateDoc(doc(db, "juegos", btn.dataset.approveJuego), { aprobado: true });
+      cargarJuegosPendientesAdmin();
+    });
+  });
+
+  tbody.querySelectorAll("[data-reject-juego]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Rechazar y borrar este juego?")) return;
+      await deleteDoc(doc(db, "juegos", btn.dataset.rejectJuego));
+      cargarJuegosPendientesAdmin();
     });
   });
 }
