@@ -21,31 +21,64 @@
     --warn: #e0a941;
   }
   * { box-sizing: border-box; }
-  body {
+  html, body {
     margin: 0;
+    height: 100%;
+    overflow: hidden; /* evita scroll de la página completa; solo el contenido interno hace scroll */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    overscroll-behavior: none;
   }
+
+  /* Layout raíz: header fijo arriba + área de contenido que ocupa el resto */
+  .app-shell {
+    height: 100vh;
+    height: 100dvh; /* respeta la barra de navegación de móviles */
+    display: flex;
+    flex-direction: column;
+  }
+
   header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
   header h1 {
-    font-size: 18px;
+    font-size: 17px;
     margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hamburger-btn {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
   }
   header .user-info {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 14px;
+    gap: 8px;
+    font-size: 13px;
     color: var(--text-dim);
   }
+
+  /* Área de contenido: la única parte que hace scroll (vertical) */
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
   button {
     background: var(--accent);
     color: white;
@@ -65,7 +98,7 @@
   button.secondary:hover { background: var(--card); }
   .container {
     max-width: 480px;
-    margin: 60px auto;
+    margin: 40px auto;
     padding: 0 20px;
   }
   .card {
@@ -114,7 +147,7 @@
   .hidden { display: none !important; }
 
   /* Vista de recursos */
-  .main-content { max-width: 900px; margin: 32px auto; padding: 0 20px; }
+  .main-content { max-width: 900px; margin: 0 auto; padding: 16px; }
   .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
   .filters select { width: auto; margin-bottom: 0; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
@@ -138,84 +171,151 @@
   .badge.pago { background: rgba(224, 169, 65, 0.15); color: var(--warn); }
   .badge.categoria { background: rgba(91, 141, 239, 0.15); color: var(--accent); }
   .empty-state { text-align: center; color: var(--text-dim); padding: 60px 20px; }
+
+  /* ===== Drawer (menú lateral deslizable) ===== */
+  .drawer-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    z-index: 90; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 280px; max-width: 82vw;
+    background: var(--card); border-right: 1px solid var(--border);
+    z-index: 91; transform: translateX(-100%); transition: transform 0.22s ease;
+    display: flex; flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-profile {
+    padding: 20px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .drawer-avatar {
+    width: 44px; height: 44px; border-radius: 50%; object-fit: cover;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: white; flex-shrink: 0; font-size: 16px;
+  }
+  .drawer-profile .nombre { font-weight: 600; font-size: 14px; }
+  .drawer-profile .username { font-size: 12px; color: var(--text-dim); }
+
+  .drawer-links { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .drawer-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 18px; color: var(--text); text-decoration: none; font-size: 14px;
+    cursor: pointer; border: none; background: none; width: 100%; text-align: left;
+  }
+  .drawer-link:hover { background: #10182a; }
+  .drawer-link .icon { font-size: 17px; width: 22px; text-align: center; }
+  .drawer-section-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-dim); padding: 14px 18px 6px;
+  }
+  .drawer-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
+  .drawer-footer button { width: 100%; }
 </style>
 </head>
 <body>
 
+<div class="app-shell">
   <header>
-    <h1>💫 OxygeNMedia</h1>
+    <h1>
+      <button class="hamburger-btn hidden" id="btnAbrirDrawer">☰</button>
+      💫 OxygeNMedia
+    </h1>
     <div class="user-info" id="userInfo"></div>
   </header>
 
-  <!-- Vista: Login / Registro -->
-  <div class="container" id="authView">
-    <div class="card">
-      <h2 id="authTitle">Iniciar sesión</h2>
-      <div class="error-msg" id="authError"></div>
+  <div class="content-area">
+    <!-- Vista: Login / Registro -->
+    <div class="container" id="authView">
+      <div class="card">
+        <h2 id="authTitle">Iniciar sesión</h2>
+        <div class="error-msg" id="authError"></div>
 
-      <div id="nombreField" class="hidden">
-        <label>Nombre completo</label>
-        <input type="text" id="inputNombre" placeholder="Tu nombre">
-      </div>
+        <div id="nombreField" class="hidden">
+          <label>Nombre completo</label>
+          <input type="text" id="inputNombre" placeholder="Tu nombre">
+        </div>
 
-      <label>Correo</label>
-      <input type="email" id="inputEmail" placeholder="tucorreo@ejemplo.com">
+        <label>Correo</label>
+        <input type="email" id="inputEmail" placeholder="tucorreo@ejemplo.com">
 
-      <label>Contraseña</label>
-      <input type="password" id="inputPassword" placeholder="••••••••">
+        <label>Contraseña</label>
+        <input type="password" id="inputPassword" placeholder="••••••••">
 
-      <button id="btnSubmitAuth" style="width:100%">Entrar</button>
+        <button id="btnSubmitAuth" style="width:100%">Entrar</button>
 
-      <div class="toggle-link">
-        <span id="toggleText">¿No tienes cuenta?</span>
-        <a id="toggleLink">Solicitar acceso</a>
-      </div>
+        <div class="toggle-link">
+          <span id="toggleText">¿No tienes cuenta?</span>
+          <a id="toggleLink">Solicitar acceso</a>
+        </div>
 
-      <div class="toggle-link" style="margin-top:8px;">
-        <a href="https://wa.me/529844681306?text=Hola%2C%20quisiera%20solicitar%20acceso%20a%20Ayuda%20Escolar" target="_blank" style="color:#4caf7d;">
-          📱 Solicitar acceso privado por WhatsApp
-        </a>
+        <div class="toggle-link" style="margin-top:8px;">
+          <a href="https://wa.me/529844681306?text=Hola%2C%20quisiera%20solicitar%20acceso%20a%20Ayuda%20Escolar" target="_blank" style="color:#4caf7d;">
+            📱 Solicitar acceso privado por WhatsApp
+          </a>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Vista: Pendiente de aprobación -->
-  <div class="container hidden" id="pendingView">
-    <div class="card pending-box">
-      <div class="icon">⏳</div>
-      <h2>Tu cuenta está pendiente</h2>
-      <p style="color:var(--text-dim)">Un administrador debe aprobar tu acceso. Vuelve a intentar más tarde o pregúntale directamente.</p>
-      <button class="secondary" id="btnLogoutPending">Cerrar sesión</button>
+    <!-- Vista: Pendiente de aprobación -->
+    <div class="container hidden" id="pendingView">
+      <div class="card pending-box">
+        <div class="icon">⏳</div>
+        <h2>Tu cuenta está pendiente</h2>
+        <p style="color:var(--text-dim)">Un administrador debe aprobar tu acceso. Vuelve a intentar más tarde o pregúntale directamente.</p>
+        <button class="secondary" id="btnLogoutPending">Cerrar sesión</button>
+      </div>
+    </div>
+
+    <!-- Vista: Recursos (usuarios aprobados) -->
+    <div class="main-content hidden" id="resourcesView">
+      <input type="text" id="buscarRecurso" placeholder="🔍 Buscar por título o descripción..." style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#10182a; color:var(--text); font-size:14px; margin-bottom:14px;">
+      <div class="filters">
+        <select id="filtroCategoria">
+          <option value="">Todas las categorías</option>
+        </select>
+        <select id="filtroTipo">
+          <option value="">Gratis y de paga</option>
+          <option value="gratis">Solo gratis</option>
+          <option value="pago">Solo de paga</option>
+        </select>
+        <button id="btnPublicarRecurso" class="hidden">+ Publicar recurso</button>
+      </div>
+      <div class="grid" id="resourceGrid"></div>
+      <div class="empty-state hidden" id="emptyState">No hay recursos disponibles todavía.</div>
     </div>
   </div>
+</div>
 
-  <!-- Vista: Recursos (usuarios aprobados) -->
-  <div class="main-content hidden" id="resourcesView">
-    <input type="text" id="buscarRecurso" placeholder="🔍 Buscar por título o descripción..." style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#10182a; color:var(--text); font-size:14px; margin-bottom:14px;">
-    <div class="filters">
-      <select id="filtroCategoria">
-        <option value="">Todas las categorías</option>
-      </select>
-      <select id="filtroTipo">
-        <option value="">Gratis y de paga</option>
-        <option value="gratis">Solo gratis</option>
-        <option value="pago">Solo de paga</option>
-      </select>
-    </div>
-    <div class="grid" id="resourceGrid"></div>
-    <div class="empty-state hidden" id="emptyState">No hay recursos disponibles todavía.</div>
+<!-- Drawer / menú lateral -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-profile" id="drawerProfile"></div>
+  <div class="drawer-links" id="drawerLinks"></div>
+  <div class="drawer-footer">
+    <button class="secondary" id="btnLogoutDrawer">Cerrar sesión</button>
   </div>
+</div>
 
 <script type="module">
 import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth } from "./auth.js";
 import { cargarRecursos } from "./app.js";
 
 let modoRegistro = false;
+let perfilGlobal = null;
 
 const authView = document.getElementById("authView");
 const pendingView = document.getElementById("pendingView");
 const resourcesView = document.getElementById("resourcesView");
 const userInfo = document.getElementById("userInfo");
+const btnAbrirDrawer = document.getElementById("btnAbrirDrawer");
+const drawer = document.getElementById("drawer");
+const drawerOverlay = document.getElementById("drawerOverlay");
+const drawerProfile = document.getElementById("drawerProfile");
+const drawerLinks = document.getElementById("drawerLinks");
+const btnPublicarRecurso = document.getElementById("btnPublicarRecurso");
 
 const authTitle = document.getElementById("authTitle");
 const authError = document.getElementById("authError");
@@ -276,7 +376,6 @@ btnSubmitAuth.addEventListener("click", async () => {
     } else {
       await iniciarSesion(email, password);
     }
-    // observarSesion se encarga de refrescar la vista automáticamente
   } catch (err) {
     mostrarError(traducirErrorAuth(err));
   }
@@ -292,29 +391,80 @@ function mostrarSoloVista(vista) {
   vista.classList.remove("hidden");
 }
 
+// ============ DRAWER (menú lateral) ============
+
+function abrirDrawer() {
+  drawer.classList.add("open");
+  drawerOverlay.classList.add("open");
+}
+function cerrarDrawer() {
+  drawer.classList.remove("open");
+  drawerOverlay.classList.remove("open");
+}
+btnAbrirDrawer.addEventListener("click", abrirDrawer);
+drawerOverlay.addEventListener("click", cerrarDrawer);
+
+function construirDrawer(perfil) {
+  const inicial = (perfil.nombre || "?")[0].toUpperCase();
+  drawerProfile.innerHTML = `
+    ${perfil.fotoURL
+      ? `<img class="drawer-avatar" src="${perfil.fotoURL}" onerror="this.outerHTML='<div class=&quot;drawer-avatar&quot;>${inicial}</div>'">`
+      : `<div class="drawer-avatar">${inicial}</div>`}
+    <div>
+      <div class="nombre">${perfil.nombre}</div>
+      <div class="username">${perfil.username ? "@" + perfil.username : ""}</div>
+    </div>
+  `;
+
+  const links = [
+    { href: "juegos.html", icon: "🎮", label: "Juegos" },
+    { href: "perfil.html", icon: "👤", label: "Mi perfil" },
+    { href: "ver-perfil.html", icon: "🔎", label: "Buscar perfiles" },
+    { href: "chat.html", icon: "💬", label: "Chat" },
+    { href: "sugerencias.html", icon: "💡", label: "Sugerencias" },
+  ];
+
+  let html = links.map(l => `<a class="drawer-link" href="${l.href}"><span class="icon">${l.icon}</span>${l.label}</a>`).join("");
+
+  if (perfil.rol === "admin") {
+    html += `<div class="drawer-section-title">Administración</div>`;
+    html += `<a class="drawer-link" href="admin.html"><span class="icon">🛠️</span>Panel Admin</a>`;
+  }
+
+  drawerLinks.innerHTML = html;
+}
+
+document.getElementById("btnLogoutDrawer").addEventListener("click", cerrarSesion);
+
+// ============ PUBLICAR RECURSO (usuarios normales, solo gratis) ============
+
+btnPublicarRecurso.addEventListener("click", () => {
+  location.href = "publicar-recurso.html";
+});
+
+// ============ SESIÓN ============
+
 observarSesion((user, perfil) => {
   if (!user) {
     userInfo.innerHTML = "";
+    btnAbrirDrawer.classList.add("hidden");
     mostrarSoloVista(authView);
     return;
   }
 
   if (!perfil || perfil.aprobado !== true) {
-    userInfo.innerHTML = `<span>${perfil ? perfil.nombre : ""}</span> <button class="secondary" onclick="location.reload()">↻</button>`;
+    userInfo.innerHTML = `<button class="secondary" onclick="location.reload()">↻</button>`;
+    btnAbrirDrawer.classList.add("hidden");
     mostrarSoloVista(pendingView);
     return;
   }
 
-  userInfo.innerHTML = `
-    <span>👤 ${perfil.nombre}</span>
-    <a href="perfil.html"><button class="secondary">👤 Mi perfil</button></a>
-    <a href="ver-perfil.html"><button class="secondary">🔎 Perfiles</button></a>
-    <a href="chat.html"><button class="secondary">💬 Chat</button></a>
-    <a href="sugerencias.html"><button class="secondary">💡 Sugerencias</button></a>
-    ${perfil.rol === "admin" ? '<a href="admin.html"><button class="secondary">Panel Admin</button></a>' : ""}
-    <button class="secondary" id="btnLogout">Salir</button>
-  `;
-  document.getElementById("btnLogout").addEventListener("click", cerrarSesion);
+  perfilGlobal = perfil;
+  btnAbrirDrawer.classList.remove("hidden");
+  construirDrawer(perfil);
+
+  userInfo.innerHTML = `<span>👋 ${perfil.nombre.split(" ")[0]}</span>`;
+  btnPublicarRecurso.classList.remove("hidden");
 
   mostrarSoloVista(resourcesView);
   cargarRecursos(perfil);
