@@ -1,0 +1,1 @@
+Todo aquel que guste experimentar con este proyecto, sea bienvenido, el proyecto es simple y facil de manejar, es solo una web social en desarollo para estudiantes, la cual usa servicios proporcionados por google para mas seguridad y poder almacenar datos.
