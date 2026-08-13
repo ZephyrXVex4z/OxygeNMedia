@@ -3,11 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat — 💫 OxygeNMedia</title>
-  <link rel="icon" type="image/x-icon" href="./favicon.ico">
-<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
-<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>Chat — OxygeNMedia</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b8def">
 <style>
@@ -92,15 +88,24 @@
   .empty-sidebar { padding: 30px 20px; color: var(--text-dim); text-align: center; font-size: 13px; }
 
   /* Ventana de chat */
-  .chat-window { flex: 1; display: flex; flex-direction: column; }
+  .chat-window { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   .chat-header {
     padding: 14px 20px;
     border-bottom: 1px solid var(--border);
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 10px;
   }
-  .chat-header h2 { font-size: 15px; margin: 0; }
+  .chat-header h2 { font-size: 15px; margin: 0; flex: 1; }
+  .btn-volver-sidebar { display: none; }
+
+  /* Responsive: en pantallas angostas, sidebar y chat se turnan la pantalla completa */
+  @media (max-width: 720px) {
+    .sidebar { width: 100%; border-right: none; }
+    .layout.mostrando-chat .sidebar { display: none; }
+    .layout:not(.mostrando-chat) .chat-window { display: none; }
+    .btn-volver-sidebar { display: inline-flex; }
+  }
   .messages {
     flex: 1;
     overflow-y: auto;
@@ -207,6 +212,7 @@
 
     <div class="hidden" id="activeChatArea" style="display:flex; flex-direction:column; flex:1;">
       <div class="chat-header">
+        <button class="secondary icon-btn btn-volver-sidebar" id="btnVolverSidebar">←</button>
         <h2 id="chatTitulo"></h2>
         <button class="secondary icon-btn hidden" id="btnGestionarMiembros">👥 Miembros</button>
       </div>
