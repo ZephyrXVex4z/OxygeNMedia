@@ -53,11 +53,16 @@ buscarUsername.addEventListener("input", () => {
 });
 
 async function buscarPorUsername(texto) {
+  // Nota: esto trae todos los usuarios aprobados y filtra en el navegador.
+  // Funciona bien para decenas/cientos de usuarios (un salón o escuela).
+  // Si el proyecto creciera mucho, convendría buscar con un campo indexado exacto.
   const snap = await getDocs(query(collection(db, "usuarios"), where("aprobado", "==", true)));
   const resultados = [];
   snap.forEach(docSnap => {
     const u = docSnap.data();
-    if (u.username && u.username.toLowerCase().includes(texto)) {
+    const coincideUsername = u.username && u.username.toLowerCase().includes(texto);
+    const coincideNombre = u.nombre && u.nombre.toLowerCase().includes(texto);
+    if (coincideUsername || coincideNombre) {
       resultados.push({ uid: docSnap.id, ...u });
     }
   });
@@ -184,4 +189,3 @@ btnChatearDesdeAqui.addEventListener("click", async () => {
     btnChatearDesdeAqui.disabled = false;
   }
 });
-
