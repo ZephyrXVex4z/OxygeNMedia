@@ -56,17 +56,37 @@ service cloud.firestore {
     }
 
     match /recursos/{recursoId} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
       // Público: cualquiera con sesión iniciada puede leer si es público
       // Privado: solo usuarios aprobados
       // OJO: este documento ya NO contiene "contenido" ni "imagenContenidoURL" —
       // esos viven en la subcolección protegida de abajo
-      allow read: if resource.data.esPublico == true
-                   || (request.auth != null &&
-                       get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true);
+      allow read: if resource.data.esPublico == true || esAprobadoUsuario();
 
-      // Solo el admin puede crear, editar o borrar recursos
-      allow write: if request.auth != null &&
-                    get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      // El admin puede crear/editar/borrar cualquier recurso, con cualquier precio.
+      // Un usuario aprobado normal puede crear un recurso, pero SOLO gratis
+      // (esGratis debe ser true, precio debe ser 0), y queda registrado como su autor.
+      allow create: if esAdminUsuario() ||
+                      (esAprobadoUsuario() &&
+                       request.resource.data.esGratis == true &&
+                       request.resource.data.precio == 0 &&
+                       request.resource.data.subidoPor == request.auth.uid);
+
+      // Editar/borrar: el admin puede todo. El autor original puede editar/borrar
+      // su propio recurso, siempre que se mantenga gratis.
+      allow update, delete: if esAdminUsuario() ||
+                      (esAprobadoUsuario() &&
+                       resource.data.subidoPor == request.auth.uid &&
+                       (request.method == 'delete' ||
+                        (request.resource.data.esGratis == true && request.resource.data.precio == 0)));
 
       // Contenido real (texto + imagen). Solo accesible si:
       // - el recurso es gratis, o
@@ -77,10 +97,13 @@ service cloud.firestore {
                       get(/databases/$(database)/documents/recursos/$(recursoId)).data.esGratis == true ||
                       (('compradoPor' in get(/databases/$(database)/documents/recursos/$(recursoId)).data) &&
                         request.auth.uid in get(/databases/$(database)/documents/recursos/$(recursoId)).data.compradoPor) ||
-                      get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin"
+                      esAdminUsuario()
                     );
-        allow write: if request.auth != null &&
-                      get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+        // El admin puede escribir el contenido de cualquier recurso.
+        // El autor original puede escribir el contenido de SU PROPIO recurso.
+        allow write: if esAdminUsuario() ||
+                      (request.auth != null &&
+                       get(/databases/$(database)/documents/recursos/$(recursoId)).data.subidoPor == request.auth.uid);
       }
     }
 
@@ -143,6 +166,38 @@ service cloud.firestore {
 
       // Solo el admin puede cambiar el estado (pendiente/revisada) o borrar
       allow update, delete: if esAdmin();
+    }
+    match /juegos/{juegoId} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
+      // Cualquier usuario aprobado puede ver los juegos APROBADOS.
+      // El admin puede ver todos (incluidos pendientes, para revisarlos).
+      // El autor puede ver los suyos aunque estén pendientes.
+      allow read: if esAdminUsuario() ||
+                    (esAprobadoUsuario() && resource.data.aprobado == true) ||
+                    (request.auth != null && resource.data.subidoPor == request.auth.uid);
+
+      // Un admin que publica: aprobado = true directo.
+      // Un usuario normal que publica: aprobado = false (queda pendiente).
+      // Nadie puede subir un juego a nombre de otro (subidoPor debe ser su propio uid).
+      allow create: if esAprobadoUsuario() &&
+                      request.resource.data.subidoPor == request.auth.uid &&
+                      (
+                        (esAdminUsuario() && request.resource.data.aprobado == true) ||
+                        (!esAdminUsuario() && request.resource.data.aprobado == false)
+                      );
+
+      // Solo el admin puede aprobar/rechazar o borrar cualquier juego.
+      // El autor puede borrar su propio juego (por si se arrepiente).
+      allow update: if esAdminUsuario();
+      allow delete: if esAdminUsuario() || (request.auth != null && resource.data.subidoPor == request.auth.uid);
     }
   }
 }
