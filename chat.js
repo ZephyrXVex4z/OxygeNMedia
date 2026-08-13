@@ -101,6 +101,7 @@ function abrirChat(chatId, chatData, nombreMostrar) {
   noChatSelected.classList.add("hidden");
   activeChatArea.classList.remove("hidden");
   activeChatArea.style.display = "flex";
+  document.querySelector(".layout").classList.add("mostrando-chat");
 
   chatTitulo.textContent = (chatData.tipo === "grupo" ? "👥 " : "") + nombreMostrar;
 
@@ -164,6 +165,10 @@ async function enviarMensaje() {
 }
 
 btnEnviar.addEventListener("click", enviarMensaje);
+
+document.getElementById("btnVolverSidebar").addEventListener("click", () => {
+  document.querySelector(".layout").classList.remove("mostrando-chat");
+});
 inputMensaje.addEventListener("keydown", (e) => {
   if (e.key === "Enter") enviarMensaje();
 });
@@ -173,12 +178,14 @@ inputMensaje.addEventListener("keydown", (e) => {
 async function buscarUsuarios(texto) {
   if (!texto || texto.trim().length < 2) return [];
   const snap = await getDocs(query(collection(db, "usuarios"), where("aprobado", "==", true)));
-  const textoLower = texto.trim().toLowerCase();
+  const textoLower = texto.trim().toLowerCase().replace(/^@/, "");
   const resultados = [];
   snap.forEach(docSnap => {
     if (docSnap.id === usuarioActual.uid) return;
     const u = docSnap.data();
-    if (u.nombre && u.nombre.toLowerCase().includes(textoLower)) {
+    const coincideNombre = u.nombre && u.nombre.toLowerCase().includes(textoLower);
+    const coincideUsername = u.username && u.username.toLowerCase().includes(textoLower);
+    if (coincideNombre || coincideUsername) {
       resultados.push({ uid: docSnap.id, ...u });
     }
   });
