@@ -6,6 +6,7 @@ import { observarSesion } from "./auth.js";
 import {
   collection, doc, getDoc, addDoc, getDocs, query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+import { obtenerEstadoAmistad, enviarSolicitudAmistad, aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
 
 let usuarioActual = null;
 let perfilVisto = null; // { uid, nombre, username, ... } del perfil que se está mostrando
@@ -22,6 +23,7 @@ const verUsername = document.getElementById("verUsername");
 const verRoles = document.getElementById("verRoles");
 const verDescripcion = document.getElementById("verDescripcion");
 const btnChatearDesdeAqui = document.getElementById("btnChatearDesdeAqui");
+const btnAmistad = document.getElementById("btnAmistad");
 const btnVolverBusqueda = document.getElementById("btnVolverBusqueda");
 
 observarSesion((user, perfil) => {
@@ -140,7 +142,64 @@ function mostrarPerfilDatos(u) {
   } else {
     verDescripcion.classList.add("hidden");
   }
+
+  actualizarBotonAmistad();
 }
+
+// ============ AMISTAD ============
+
+let estadoAmistadActual = null; // null | { id, estado, solicitadoPor }
+
+async function actualizarBotonAmistad() {
+  btnAmistad.disabled = true;
+  btnAmistad.textContent = "Cargando...";
+
+  estadoAmistadActual = await obtenerEstadoAmistad(usuarioActual.uid, perfilVisto.uid);
+
+  if (!estadoAmistadActual) {
+    btnAmistad.textContent = "➕ Enviar solicitud de amistad";
+    btnAmistad.disabled = false;
+  } else if (estadoAmistadActual.estado === "pendiente") {
+    if (estadoAmistadActual.solicitadoPor === usuarioActual.uid) {
+      btnAmistad.textContent = "⏳ Solicitud enviada (cancelar)";
+    } else {
+      btnAmistad.textContent = "✅ Aceptar solicitud de amistad";
+    }
+    btnAmistad.disabled = false;
+  } else if (estadoAmistadActual.estado === "aceptada") {
+    btnAmistad.textContent = "👥 Ya son amigos (quitar)";
+    btnAmistad.disabled = false;
+  }
+}
+
+btnAmistad.addEventListener("click", async () => {
+  if (!perfilVisto) return;
+  btnAmistad.disabled = true;
+
+  try {
+    if (!estadoAmistadActual) {
+      // Sin relación: enviar solicitud
+      await enviarSolicitudAmistad(usuarioActual.uid, usuarioActual.nombre, perfilVisto.uid, perfilVisto.nombre);
+    } else if (estadoAmistadActual.estado === "pendiente" && estadoAmistadActual.solicitadoPor === usuarioActual.uid) {
+      // Yo la envié: cancelarla
+      await eliminarAmistad(estadoAmistadActual.id);
+    } else if (estadoAmistadActual.estado === "pendiente") {
+      // El otro la envió: aceptarla
+      await aceptarSolicitudAmistad(estadoAmistadActual.id, usuarioActual.uid, usuarioActual.nombre, perfilVisto.uid, perfilVisto.nombre);
+    } else if (estadoAmistadActual.estado === "aceptada") {
+      // Ya son amigos: quitar amistad (con confirmación)
+      if (!confirm("¿Quitar a " + perfilVisto.nombre + " de tus amigos?")) {
+        btnAmistad.disabled = false;
+        return;
+      }
+      await eliminarAmistad(estadoAmistadActual.id);
+    }
+    await actualizarBotonAmistad();
+  } catch (err) {
+    alert("Error: " + err.message);
+    btnAmistad.disabled = false;
+  }
+});
 
 btnVolverBusqueda.addEventListener("click", () => {
   perfilCard.classList.add("hidden");
