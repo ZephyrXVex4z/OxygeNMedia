@@ -71,6 +71,46 @@
     color: var(--text-dim);
   }
 
+  /* Campanita de notificaciones */
+  .bell-wrapper { position: relative; }
+  .bell-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text);
+    width: 38px; height: 38px; border-radius: 8px; font-size: 17px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+  }
+  .bell-btn:hover { background: var(--card); }
+  .bell-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: var(--danger); color: white; font-size: 10px; font-weight: 700;
+    min-width: 17px; height: 17px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; padding: 0 4px;
+    border: 2px solid var(--bg);
+  }
+
+  .notif-panel {
+    position: absolute; top: calc(100% + 8px); right: 0; width: 320px; max-width: 88vw;
+    max-height: 420px; overflow-y: auto; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 80; display: none;
+  }
+  .notif-panel.open { display: block; }
+  .notif-panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600;
+  }
+  .notif-panel-header button { padding: 4px 8px; font-size: 11px; }
+  .notif-item {
+    padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item:hover { background: #10182a; }
+  .notif-item.no-leida { background: rgba(91,141,239,0.06); }
+  .notif-item .notif-texto { color: var(--text); }
+  .notif-item .notif-fecha { font-size: 11px; color: var(--text-dim); }
+  .notif-item .notif-actions { display: flex; gap: 6px; margin-top: 4px; }
+  .notif-item .notif-actions button { padding: 5px 10px; font-size: 12px; }
+  .notif-empty { padding: 30px 16px; text-align: center; color: var(--text-dim); font-size: 13px; }
+
   /* Área de contenido: la única parte que hace scroll (vertical) */
   .content-area {
     flex: 1;
@@ -223,7 +263,19 @@
       <button class="hamburger-btn hidden" id="btnAbrirDrawer">☰</button>
       💫 OxygeNMedia
     </h1>
-    <div class="user-info" id="userInfo"></div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="bell-wrapper hidden" id="bellWrapper">
+        <button class="bell-btn" id="btnBell">🔔<span class="bell-badge hidden" id="bellBadge">0</span></button>
+        <div class="notif-panel" id="notifPanel">
+          <div class="notif-panel-header">
+            <span>Notificaciones</span>
+            <button class="secondary" id="btnMarcarTodasLeidas">Marcar todas leídas</button>
+          </div>
+          <div id="notifList"></div>
+        </div>
+      </div>
+      <div class="user-info" id="userInfo"></div>
+    </div>
   </header>
 
   <div class="content-area">
@@ -302,9 +354,12 @@
 <script type="module">
 import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth } from "./auth.js";
 import { cargarRecursos } from "./app.js";
+import { escucharNotificaciones, marcarNotificacionLeida, marcarTodasLeidas, borrarNotificacion } from "./notificaciones.js";
+import { aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
 
 let modoRegistro = false;
 let perfilGlobal = null;
+let uidGlobal = null;
 
 const authView = document.getElementById("authView");
 const pendingView = document.getElementById("pendingView");
@@ -436,6 +491,90 @@ function construirDrawer(perfil) {
 
 document.getElementById("btnLogoutDrawer").addEventListener("click", cerrarSesion);
 
+// ============ NOTIFICACIONES (campanita) ============
+
+const bellWrapper = document.getElementById("bellWrapper");
+const btnBell = document.getElementById("btnBell");
+const bellBadge = document.getElementById("bellBadge");
+const notifPanel = document.getElementById("notifPanel");
+const notifList = document.getElementById("notifList");
+const btnMarcarTodasLeidas = document.getElementById("btnMarcarTodasLeidas");
+
+let notificacionesActuales = [];
+let unsubscribeNotifs = null;
+
+btnBell.addEventListener("click", () => {
+  notifPanel.classList.toggle("open");
+});
+document.addEventListener("click", (e) => {
+  if (!bellWrapper.contains(e.target)) notifPanel.classList.remove("open");
+});
+
+function tiempoRelativo(fecha) {
+  if (!fecha) return "";
+  const segundos = Math.floor((Date.now() - fecha.toDate().getTime()) / 1000);
+  if (segundos < 60) return "ahora";
+  if (segundos < 3600) return Math.floor(segundos / 60) + " min";
+  if (segundos < 86400) return Math.floor(segundos / 3600) + " h";
+  return Math.floor(segundos / 86400) + " d";
+}
+
+function renderNotificaciones() {
+  const noLeidas = notificacionesActuales.filter(n => !n.leida).length;
+  bellBadge.classList.toggle("hidden", noLeidas === 0);
+  if (noLeidas > 0) bellBadge.textContent = noLeidas > 9 ? "9+" : noLeidas;
+
+  if (notificacionesActuales.length === 0) {
+    notifList.innerHTML = `<div class="notif-empty">No tienes notificaciones.</div>`;
+    return;
+  }
+
+  notifList.innerHTML = notificacionesActuales.map(n => {
+    let acciones = "";
+    if (n.tipo === "solicitud_amistad") {
+      acciones = `
+        <div class="notif-actions">
+          <button data-aceptar-amistad="${n.id}" data-amistad-id="${n.dataExtra?.amistadId || ''}" data-de-uid="${n.deUid}" data-de-nombre="${n.deNombre}">Aceptar</button>
+          <button class="secondary" data-rechazar-amistad="${n.id}" data-amistad-id="${n.dataExtra?.amistadId || ''}">Rechazar</button>
+        </div>`;
+    }
+    return `
+      <div class="notif-item ${n.leida ? "" : "no-leida"}" data-notif-id="${n.id}">
+        <span class="notif-texto">${n.texto}</span>
+        <span class="notif-fecha">${tiempoRelativo(n.fecha)}</span>
+        ${acciones}
+      </div>
+    `;
+  }).join("");
+
+  // Click en la notificación (fuera de los botones de acción) la marca como leída
+  notifList.querySelectorAll(".notif-item").forEach(item => {
+    item.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      marcarNotificacionLeida(item.dataset.notifId);
+    });
+  });
+
+  notifList.querySelectorAll("[data-aceptar-amistad]").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!btn.dataset.amistadId) return;
+      await aceptarSolicitudAmistad(btn.dataset.amistadId, uidGlobal, perfilGlobal.nombre, btn.dataset.deUid, btn.dataset.deNombre);
+      await marcarNotificacionLeida(btn.dataset.aceptarAmistad);
+    });
+  });
+
+  notifList.querySelectorAll("[data-rechazar-amistad]").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (btn.dataset.amistadId) await eliminarAmistad(btn.dataset.amistadId);
+      await borrarNotificacion(btn.dataset.rechazarAmistad);
+    });
+  });
+}
+
+btnMarcarTodasLeidas.addEventListener("click", () => marcarTodasLeidas(notificacionesActuales));
+
 // ============ PUBLICAR RECURSO (usuarios normales, solo gratis) ============
 
 btnPublicarRecurso.addEventListener("click", () => {
@@ -448,6 +587,8 @@ observarSesion((user, perfil) => {
   if (!user) {
     userInfo.innerHTML = "";
     btnAbrirDrawer.classList.add("hidden");
+    bellWrapper.classList.add("hidden");
+    if (unsubscribeNotifs) { unsubscribeNotifs(); unsubscribeNotifs = null; }
     mostrarSoloVista(authView);
     return;
   }
@@ -455,13 +596,23 @@ observarSesion((user, perfil) => {
   if (!perfil || perfil.aprobado !== true) {
     userInfo.innerHTML = `<button class="secondary" onclick="location.reload()">↻</button>`;
     btnAbrirDrawer.classList.add("hidden");
+    bellWrapper.classList.add("hidden");
     mostrarSoloVista(pendingView);
     return;
   }
 
   perfilGlobal = perfil;
+  uidGlobal = user.uid;
   btnAbrirDrawer.classList.remove("hidden");
   construirDrawer(perfil);
+
+  bellWrapper.classList.remove("hidden");
+  if (!unsubscribeNotifs) {
+    unsubscribeNotifs = escucharNotificaciones(user.uid, (lista) => {
+      notificacionesActuales = lista;
+      renderNotificaciones();
+    });
+  }
 
   userInfo.innerHTML = `<span>👋 ${perfil.nombre.split(" ")[0]}</span>`;
   btnPublicarRecurso.classList.remove("hidden");
