@@ -4,6 +4,7 @@
 import { db } from "./firebase-config.js";
 import { observarSesion, cerrarSesion } from "./auth.js";
 import { registrarLog, obtenerLogsRecientes } from "./logs.js";
+import { adminAjustarSaldo } from "./wallet.js";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, setDoc,
   query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove
@@ -304,8 +305,10 @@ async function cargarTodos() {
         <span class="badge ${u.aprobado ? "gratis" : "pago"}">${u.aprobado ? "Aprobado" : "Pendiente"}</span>
         ${estaSuspendido ? `<span class="badge pago" style="background:rgba(227,93,93,0.15); color:var(--danger);">Suspendido</span>` : ""}
       </td>
+      <td style="font-weight:600; color:var(--success);">$${u.saldo || 0}</td>
       <td class="row-actions">
         <button class="secondary" data-pagos="${docSnap.id}">Pagos</button>
+        <button class="secondary" data-saldo="${docSnap.id}" data-nombre-saldo="${u.nombre}" data-saldo-actual="${u.saldo || 0}">💰 Saldo</button>
         ${u.rol !== "admin"
           ? `<button class="secondary" data-makeadmin="${docSnap.id}">Hacer admin</button>`
           : ""}
@@ -318,6 +321,9 @@ async function cargarTodos() {
     tbody.appendChild(tr);
   });
 
+  tbody.querySelectorAll("[data-saldo]").forEach(btn => {
+    btn.addEventListener("click", () => abrirModalSaldo(btn.dataset.saldo, btn.dataset.nombreSaldo, Number(btn.dataset.saldoActual)));
+  });
   tbody.querySelectorAll("[data-pagos]").forEach(btn => {
     btn.addEventListener("click", () => abrirModalPagos(btn.dataset.pagos, btn.closest("tr")));
   });
@@ -606,7 +612,9 @@ const ETIQUETAS_TIPO_LOG = {
   aprobacion_usuario: "👤 Usuario aprobado",
   borrado_mensaje: "🗑️ Mensaje borrado",
   borrado_sugerencia: "🗑️ Sugerencia borrada",
-  borrado_recurso: "🗑️ Recurso borrado"
+  borrado_recurso: "🗑️ Recurso borrado",
+  admin_dar: "💰 Saldo otorgado",
+  admin_quitar: "💸 Saldo removido"
 };
 
 async function cargarLogs() {
@@ -633,3 +641,67 @@ async function cargarLogs() {
     tbody.appendChild(tr);
   });
 }
+
+// ============ GESTIÓN DE SALDO (ADMIN) ============
+
+const modalSaldo = document.getElementById("modalSaldo");
+const saldoUsuarioNombre = document.getElementById("saldoUsuarioNombre");
+const saldoUsuarioActual = document.getElementById("saldoUsuarioActual");
+const saldoMonto = document.getElementById("saldoMonto");
+const saldoMotivo = document.getElementById("saldoMotivo");
+const msgSaldo = document.getElementById("msgSaldo");
+
+let usuarioSaldoId = null;
+let usuarioSaldoNombre = null;
+
+function abrirModalSaldo(uid, nombre, saldoActual) {
+  usuarioSaldoId = uid;
+  usuarioSaldoNombre = nombre;
+  saldoUsuarioNombre.textContent = "Gestionar saldo — " + nombre;
+  saldoUsuarioActual.textContent = "Saldo actual: $" + saldoActual;
+  saldoMonto.value = "";
+  saldoMotivo.value = "";
+  msgSaldo.style.display = "none";
+  modalSaldo.classList.remove("hidden");
+}
+
+document.getElementById("btnCerrarSaldo").addEventListener("click", () => {
+  modalSaldo.classList.add("hidden");
+});
+
+async function procesarAjusteSaldo(signo) {
+  const monto = Number(saldoMonto.value);
+  if (!monto || monto <= 0) {
+    msgSaldo.textContent = "Escribe un monto válido.";
+    msgSaldo.className = "msg error";
+    msgSaldo.style.display = "block";
+    return;
+  }
+
+  try {
+    await adminAjustarSaldo(
+      adminActual.uid, adminActual.nombre,
+      usuarioSaldoId, usuarioSaldoNombre,
+      monto * signo, saldoMotivo.value.trim()
+    );
+
+    await registrarLog({
+      tipo: signo > 0 ? "admin_dar" : "admin_quitar",
+      adminUid: adminActual.uid,
+      adminNombre: adminActual.nombre,
+      objetivoUid: usuarioSaldoId,
+      objetivoNombre: usuarioSaldoNombre,
+      detalle: `${signo > 0 ? "Dio" : "Quitó"} $${monto}${saldoMotivo.value.trim() ? " — " + saldoMotivo.value.trim() : ""}`
+    });
+
+    modalSaldo.classList.add("hidden");
+    cargarTodos();
+  } catch (err) {
+    msgSaldo.textContent = err.message;
+    msgSaldo.className = "msg error";
+    msgSaldo.style.display = "block";
+  }
+}
+
+document.getElementById("btnDarSaldo").addEventListener("click", () => procesarAjusteSaldo(1));
+document.getElementById("btnQuitarSaldo").addEventListener("click", () => procesarAjusteSaldo(-1));
