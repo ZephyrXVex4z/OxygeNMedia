@@ -220,8 +220,13 @@ service cloud.firestore {
         return request.auth != null && request.auth.uid in resource.data.usuarios;
       }
 
-      // Solo las dos personas involucradas pueden leer su amistad
-      allow read: if esParteDeLaAmistad();
+      // Solo las dos personas involucradas pueden leer su amistad.
+      // Si el documento no existe todavía, Firestore permite el intento de lectura
+      // igual (devuelve "no encontrado" al cliente) siempre que quien pregunta esté
+      // autenticado — evita el error de permisos al comprobar amistades inexistentes.
+      allow read: if request.auth != null &&
+                    (!exists(/databases/$(database)/documents/amistades/$(amistadId)) ||
+                     esParteDeLaAmistad());
 
       // Cualquier usuario autenticado puede iniciar una solicitud, siempre que:
       // - se incluya a sí mismo en "usuarios"
