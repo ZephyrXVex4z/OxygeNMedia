@@ -88,6 +88,7 @@ function render() {
       </div>
       <h3>${r.titulo}</h3>
       <p>${r.descripcion || ""}</p>
+      ${r.subidoPor ? `<a href="ver-perfil.html?uid=${r.subidoPor}" style="display:inline-block; font-size:12px; color:var(--text-dim); text-decoration:none; margin-bottom:10px;">Por <span style="color:var(--accent);">${r.subidoPorNombre || "usuario"}</span></a><br>` : ""}
       ${contenidoBoton}
     `;
     grid.appendChild(card);
