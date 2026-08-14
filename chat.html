@@ -27,7 +27,9 @@
     background: var(--bg);
     color: var(--text);
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
+    overscroll-behavior: none;
   }
   header {
     display: flex;
@@ -56,6 +58,7 @@
   .layout {
     display: flex;
     height: calc(100vh - 53px);
+    height: calc(100dvh - 53px);
   }
 
   /* Sidebar */
@@ -146,7 +149,7 @@
     border: 1px solid var(--border);
     background: #10182a;
     color: var(--text);
-    font-size: 14px;
+    font-size: 16px;
   }
   .no-chat-selected {
     flex: 1;
