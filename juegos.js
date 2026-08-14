@@ -2,7 +2,7 @@
 // Sistema de juegos HTML: subida con aprobación condicional, sandbox seguro para jugar
 
 import { db } from "./firebase-config.js";
-import { observarSesion } from "./auth.js";
+import { observarSesion, cuentaBloqueada } from "./auth.js";
 import {
   collection, addDoc, getDocs, query, where, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -31,7 +31,7 @@ const gameFrame = document.getElementById("gameFrame");
 const btnVolverLista = document.getElementById("btnVolverLista");
 
 observarSesion((user, perfil) => {
-  if (!user || !perfil || perfil.aprobado !== true) {
+  if (!user || cuentaBloqueada(perfil).bloqueada) {
     document.body.innerHTML = "<div style='padding:60px;text-align:center;color:#8b96b0;'>Debes iniciar sesión y estar aprobado para ver los juegos. <br><br><a href='index.html' style='color:#5b8def;'>Volver al sitio</a></div>";
     return;
   }
@@ -164,4 +164,3 @@ btnVolverLista.addEventListener("click", () => {
   jugarView.classList.add("hidden");
   listaView.classList.remove("hidden");
 });
-
