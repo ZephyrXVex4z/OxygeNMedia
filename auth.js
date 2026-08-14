@@ -6,7 +6,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 import {
   doc,
@@ -43,6 +44,11 @@ export async function cerrarSesion() {
   await signOut(auth);
 }
 
+// Envía un correo con enlace para restablecer la contraseña
+export async function enviarCorreoRestablecer(email) {
+  await sendPasswordResetEmail(auth, email);
+}
+
 // Trae el documento de Firestore del usuario actual (rol, aprobado, etc.)
 export async function obtenerPerfilUsuario(uid) {
   const snap = await getDoc(doc(db, "usuarios", uid));
@@ -73,7 +79,8 @@ export function traducirErrorAuth(error) {
     "auth/user-not-found": "No existe una cuenta con ese correo.",
     "auth/wrong-password": "Contraseña incorrecta.",
     "auth/invalid-credential": "Correo o contraseña incorrectos.",
-    "auth/too-many-requests": "Demasiados intentos. Espera unos minutos e intenta de nuevo."
+    "auth/too-many-requests": "Demasiados intentos. Espera unos minutos e intenta de nuevo.",
+    "auth/missing-email": "Escribe tu correo primero."
   };
   return mapa[codigo] || "Ocurrió un error. Intenta de nuevo.";
 }
