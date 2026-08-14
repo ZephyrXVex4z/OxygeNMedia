@@ -8,10 +8,11 @@ service cloud.firestore {
       // El admin puede leer todos los usuarios
       allow read: if request.auth != null &&
                     get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
-      // Cualquier usuario aprobado puede leer datos básicos de otros usuarios aprobados
-      // (necesario para buscar con quién chatear)
+      // Cualquier usuario aprobado (y no suspendido) puede leer datos básicos de otros
+      // usuarios aprobados (necesario para buscar con quién chatear)
       allow read: if request.auth != null &&
                     get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true &&
+                    get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('suspendido', false) == false &&
                     resource.data.aprobado == true;
 
       // Al registrarse, el usuario crea su propio documento,
@@ -142,6 +143,22 @@ service cloud.firestore {
         allow create: if request.auth != null &&
                       request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.miembros &&
                       request.resource.data.autorId == request.auth.uid;
+
+        // Editar/marcar-eliminado: el autor puede cambiar el texto y marcar "editado" o "eliminado".
+        // El admin del sitio también puede marcar un mensaje ajeno como "eliminado" (moderación),
+        // pero no puede reescribir el texto de alguien más como si lo hubiera escrito esa persona.
+        allow update: if request.auth != null &&
+                      request.resource.data.autorId == resource.data.autorId &&
+                      request.resource.data.fecha == resource.data.fecha &&
+                      (
+                        resource.data.autorId == request.auth.uid ||
+                        (esAdmin() && request.resource.data.eliminado == true)
+                      );
+
+        // Borrado real (poco usado, ya que preferimos marcar "eliminado" en vez de borrar
+        // el documento — pero se deja disponible para el autor o el admin)
+        allow delete: if request.auth != null &&
+                      (resource.data.autorId == request.auth.uid || esAdmin());
       }
     }
     match /sugerencias/{sugerenciaId} {
@@ -239,6 +256,17 @@ service cloud.firestore {
 
       // Cualquiera de los dos puede actualizar (aceptar) o borrar (rechazar/eliminar amistad)
       allow update, delete: if esParteDeLaAmistad();
+    }
+    match /logs/{logId} {
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+      // Los logs son solo para admins: leerlos y crearlos.
+      // Nadie puede editarlos ni borrarlos (integridad del historial).
+      allow read: if esAdminUsuario();
+      allow create: if esAdminUsuario() && request.resource.data.adminUid == request.auth.uid;
+      allow update, delete: if false;
     }
   }
 }
