@@ -41,6 +41,7 @@ export async function iniciarSesion(email, password) {
 
 // Cierra sesión
 export async function cerrarSesion() {
+  limpiarPerfilCache();
   await signOut(auth);
 }
 
@@ -56,16 +57,59 @@ export async function obtenerPerfilUsuario(uid) {
   return snap.data();
 }
 
-// Escucha cambios de sesión y ejecuta un callback con (user, perfil)
-// perfil es null si no hay sesión iniciada
+// --- Caché de perfil en sessionStorage ---
+// Evita esperar el viaje a Firestore en cada cambio de página dentro de la misma
+// pestaña/sesión del navegador. Se invalida sola al cerrar sesión o cerrar la pestaña.
+const CLAVE_CACHE_PERFIL = "perfilCache_v1";
+
+function leerPerfilCache(uid) {
+  try {
+    const raw = sessionStorage.getItem(CLAVE_CACHE_PERFIL);
+    if (!raw) return null;
+    const datos = JSON.parse(raw);
+    if (datos.uid !== uid) return null; // cambió de usuario, no sirve el caché
+    return datos.perfil;
+  } catch {
+    return null;
+  }
+}
+
+function guardarPerfilCache(uid, perfil) {
+  try {
+    sessionStorage.setItem(CLAVE_CACHE_PERFIL, JSON.stringify({ uid, perfil }));
+  } catch {
+    // sessionStorage lleno o bloqueado (modo incógnito estricto) — no es crítico, seguimos sin caché
+  }
+}
+
+export function limpiarPerfilCache() {
+  try { sessionStorage.removeItem(CLAVE_CACHE_PERFIL); } catch {}
+}
+
+// Escucha cambios de sesión y ejecuta un callback con (user, perfil).
+// Si hay un perfil cacheado de esta misma sesión, llama al callback INMEDIATAMENTE
+// con esos datos (la página se siente instantánea), y luego vuelve a llamar con los
+// datos frescos de Firestore en cuanto lleguen (por si algo cambió, ej. te aprobaron).
 export function observarSesion(callback) {
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
+      limpiarPerfilCache();
       callback(null, null);
       return;
     }
-    const perfil = await obtenerPerfilUsuario(user.uid);
-    callback(user, perfil);
+
+    const cacheado = leerPerfilCache(user.uid);
+    if (cacheado) {
+      callback(user, cacheado);
+    }
+
+    const perfilFresco = await obtenerPerfilUsuario(user.uid);
+    if (perfilFresco) guardarPerfilCache(user.uid, perfilFresco);
+
+    // Evita re-renderizar de más si el perfil cacheado y el fresco son idénticos
+    if (!cacheado || JSON.stringify(cacheado) !== JSON.stringify(perfilFresco)) {
+      callback(user, perfilFresco);
+    }
   });
 }
 
