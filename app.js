@@ -11,9 +11,11 @@ import {
   doc,
   orderBy
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+import { comprarRecursoConSaldo, obtenerSaldo } from "./wallet.js";
 
 let todosLosRecursos = [];
 let perfilActual = null;
+let uidActual = null;
 
 const grid = document.getElementById("resourceGrid");
 const emptyState = document.getElementById("emptyState");
@@ -21,8 +23,9 @@ const filtroCategoria = document.getElementById("filtroCategoria");
 const filtroTipo = document.getElementById("filtroTipo");
 const buscarRecurso = document.getElementById("buscarRecurso");
 
-export async function cargarRecursos(perfil) {
+export async function cargarRecursos(perfil, uid) {
   perfilActual = perfil;
+  uidActual = uid;
 
   const q = query(
     collection(db, "recursos"),
@@ -77,7 +80,8 @@ function render() {
     if (r.esGratis || yaComprado) {
       contenidoBoton = `<button onclick="verDetalle('${r.id}')">Ver contenido</button>`;
     } else {
-      contenidoBoton = `<button class="secondary" disabled>💵 $${r.precio} MXN — pagar en la escuela</button>`;
+      contenidoBoton = `<button onclick="comprarConSaldo('${r.id}', ${r.precio}, '${r.titulo.replace(/'/g, "\\'")}')">💰 Comprar por $${r.precio}</button>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:6px;">o paga en efectivo en la escuela</div>`;
     }
 
     card.innerHTML = `
@@ -143,6 +147,25 @@ window.verDetalle = async function(id) {
 
 filtroCategoria.addEventListener("change", render);
 filtroTipo.addEventListener("change", render);
+
+// Compra un recurso de pago usando el saldo del usuario. Descuenta y desbloquea al instante.
+window.comprarConSaldo = async function(recursoId, precio, titulo) {
+  const saldo = await obtenerSaldo(uidActual);
+  if (saldo < precio) {
+    alert(`No tienes saldo suficiente. Tu saldo actual es $${saldo} y este recurso cuesta $${precio}.\n\nPuedes recibir crédito de un admin, o pagar en efectivo en la escuela.`);
+    return;
+  }
+  if (!confirm(`¿Comprar "${titulo}" por $${precio}? Se descontará de tu saldo.`)) return;
+
+  try {
+    await comprarRecursoConSaldo(uidActual, perfilActual.nombre, recursoId, precio, titulo);
+    perfilActual.recursosComprados = [...(perfilActual.recursosComprados || []), recursoId];
+    render();
+    alert("¡Compra exitosa! Ya puedes ver el contenido.");
+  } catch (err) {
+    alert("Error al comprar: " + err.message);
+  }
+};
 
 let debounceBusqueda = null;
 buscarRecurso.addEventListener("input", () => {
