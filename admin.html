@@ -133,6 +133,7 @@
     <div class="tab" data-tab="todos">Todos los usuarios</div>
     <div class="tab" data-tab="roles">Roles pendientes</div>
     <div class="tab" data-tab="juegos">Juegos pendientes</div>
+    <div class="tab" data-tab="registro">Registro</div>
   </div>
 
   <div class="content">
@@ -247,6 +248,18 @@
       </div>
     </div>
 
+    <!-- TAB: Registro de moderación -->
+    <div id="tabRegistro" class="hidden">
+      <div class="card">
+        <h3>Registro de acciones de moderación</h3>
+        <table>
+          <thead><tr><th>Fecha</th><th>Admin</th><th>Acción</th><th>Detalle</th></tr></thead>
+          <tbody id="tablaLogs"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyLogs">Aún no hay acciones registradas.</div>
+      </div>
+    </div>
+
   </div>
 </div>
 </div>
@@ -261,6 +274,27 @@
     <div style="margin-top:14px; display:flex; gap:8px;">
       <button id="btnGuardarPagos">Guardar</button>
       <button class="secondary" id="btnCerrarPagos">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: suspender usuario -->
+<div class="hidden" id="modalSuspender" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50;">
+  <div class="card" style="max-width:420px; width:90%;">
+    <h3 id="suspenderUsuarioNombre">Suspender cuenta</h3>
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Motivo (se le mostrará al usuario)</label>
+    <textarea id="suspenderMotivo" placeholder="Ej. Lenguaje ofensivo repetido en el chat" style="width:100%; min-height:70px; padding:10px; border-radius:8px; border:1px solid var(--border); background:#10182a; color:var(--text); font-size:14px; font-family:inherit; margin-bottom:10px;"></textarea>
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Duración</label>
+    <select id="suspenderDuracion" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:#10182a; color:var(--text); font-size:14px; margin-bottom:14px;">
+      <option value="1">1 día</option>
+      <option value="3">3 días</option>
+      <option value="7">7 días</option>
+      <option value="30">30 días</option>
+      <option value="permanente">Permanente (hasta que la reactives)</option>
+    </select>
+    <div style="display:flex; gap:8px;">
+      <button class="danger" id="btnConfirmarSuspender" style="flex:1;">Suspender</button>
+      <button class="secondary" id="btnCancelarSuspender">Cancelar</button>
     </div>
   </div>
 </div>
