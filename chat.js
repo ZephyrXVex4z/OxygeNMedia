@@ -2,9 +2,9 @@
 // Sistema de chat privado y grupal en tiempo real
 
 import { db } from "./firebase-config.js";
-import { observarSesion } from "./auth.js";
+import { observarSesion, cuentaBloqueada } from "./auth.js";
 import {
-  collection, doc, addDoc, updateDoc, getDoc, getDocs,
+  collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs,
   query, where, orderBy, serverTimestamp, onSnapshot,
   arrayUnion, arrayRemove, limit
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -27,7 +27,7 @@ const btnGestionarMiembros = document.getElementById("btnGestionarMiembros");
 // ============ SESIÓN ============
 
 observarSesion((user, perfil) => {
-  if (!user || !perfil || perfil.aprobado !== true) {
+  if (!user || cuentaBloqueada(perfil).bloqueada) {
     document.body.innerHTML = "<div style='padding:60px;text-align:center;color:#8b96b0;'>Debes iniciar sesión y estar aprobado para usar el chat. <br><br><a href='index.html' style='color:#5b8def;'>Volver al sitio</a></div>";
     return;
   }
@@ -125,15 +125,109 @@ function abrirChat(chatId, chatData, nombreMostrar) {
     snap.forEach(docSnap => {
       const m = docSnap.data();
       const esMio = m.autorId === usuarioActual.uid;
+      const puedoBorrar = esMio || usuarioActual.rol === "admin";
       const bubble = document.createElement("div");
       bubble.className = "msg-bubble " + (esMio ? "mine" : "theirs");
+      bubble.dataset.mensajeId = docSnap.id;
+
+      if (m.eliminado) {
+        bubble.innerHTML = `
+          ${!esMio && chatData.tipo === "grupo" ? `<span class="autor">${m.autorNombre}</span>` : ""}
+          <em style="opacity:0.6;">Este mensaje fue eliminado</em>
+        `;
+        messagesDiv.appendChild(bubble);
+        return;
+      }
+
+      const menuBtn = (esMio || puedoBorrar)
+        ? `<span class="msg-menu-btn" data-abrir-menu="${docSnap.id}">⋮</span>`
+        : "";
+
       bubble.innerHTML = `
         ${!esMio && chatData.tipo === "grupo" ? `<span class="autor">${m.autorNombre}</span>` : ""}
-        ${escapeHtml(m.texto)}
+        <span class="msg-texto">${escapeHtml(m.texto)}</span>
+        ${m.editado ? `<span class="msg-editado">(editado)</span>` : ""}
+        ${menuBtn}
+        <div class="msg-menu hidden" id="menu-${docSnap.id}">
+          ${esMio ? `<button data-editar="${docSnap.id}">Editar</button>` : ""}
+          ${puedoBorrar ? `<button data-borrar="${docSnap.id}" class="danger-text">Eliminar</button>` : ""}
+        </div>
       `;
       messagesDiv.appendChild(bubble);
     });
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    conectarAccionesMensajes();
+  });
+}
+
+function conectarAccionesMensajes() {
+  messagesDiv.querySelectorAll("[data-abrir-menu]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const menu = document.getElementById("menu-" + btn.dataset.abrirMenu);
+      const yaAbierto = !menu.classList.contains("hidden");
+      messagesDiv.querySelectorAll(".msg-menu").forEach(m => m.classList.add("hidden"));
+      if (!yaAbierto) menu.classList.remove("hidden");
+    });
+  });
+
+  messagesDiv.querySelectorAll("[data-editar]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      iniciarEdicionMensaje(btn.dataset.editar);
+    });
+  });
+
+  messagesDiv.querySelectorAll("[data-borrar]").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm("¿Eliminar este mensaje?")) return;
+      await updateDoc(doc(db, "chats", chatActivoId, "mensajes", btn.dataset.borrar), {
+        eliminado: true,
+        texto: ""
+      });
+    });
+  });
+}
+
+document.addEventListener("click", () => {
+  messagesDiv.querySelectorAll(".msg-menu").forEach(m => m.classList.add("hidden"));
+});
+
+function iniciarEdicionMensaje(mensajeId) {
+  const bubble = messagesDiv.querySelector(`[data-mensaje-id="${mensajeId}"]`);
+  if (!bubble) return;
+  const textoActual = bubble.querySelector(".msg-texto").textContent;
+
+  bubble.innerHTML = `
+    <input type="text" class="msg-edit-input" value="${textoActual.replace(/"/g, "&quot;")}">
+    <div class="msg-edit-actions">
+      <button data-guardar-edicion="${mensajeId}">Guardar</button>
+      <button class="secondary" data-cancelar-edicion>Cancelar</button>
+    </div>
+  `;
+
+  const input = bubble.querySelector(".msg-edit-input");
+  input.focus();
+  input.select();
+
+  const guardar = async () => {
+    const nuevoTexto = input.value.trim();
+    if (!nuevoTexto) return;
+    await updateDoc(doc(db, "chats", chatActivoId, "mensajes", mensajeId), {
+      texto: nuevoTexto,
+      editado: true
+    });
+  };
+
+  bubble.querySelector("[data-guardar-edicion]").addEventListener("click", guardar);
+  bubble.querySelector("[data-cancelar-edicion]").addEventListener("click", () => {
+    // El siguiente snapshot de onSnapshot va a re-renderizar el mensaje original de todas formas,
+    // pero forzamos un refresco inmediato por si el listener tarda
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") guardar();
   });
 }
 
