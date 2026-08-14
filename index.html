@@ -324,12 +324,12 @@
       </div>
     </div>
 
-    <!-- Vista: Pendiente de aprobación -->
+    <!-- Vista: Pendiente de aprobación o suspendido -->
     <div class="container hidden" id="pendingView">
       <div class="card pending-box">
-        <div class="icon">⏳</div>
-        <h2>Tu cuenta está pendiente</h2>
-        <p style="color:var(--text-dim)">Un administrador debe aprobar tu acceso. Vuelve a intentar más tarde o pregúntale directamente.</p>
+        <div class="icon" id="pendingIcon">⏳</div>
+        <h2 id="pendingTitulo">Tu cuenta está pendiente</h2>
+        <p style="color:var(--text-dim)" id="pendingTexto">Un administrador debe aprobar tu acceso. Vuelve a intentar más tarde o pregúntale directamente.</p>
         <button class="secondary" id="btnLogoutPending">Cerrar sesión</button>
       </div>
     </div>
@@ -365,7 +365,7 @@
 </div>
 
 <script type="module">
-import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth, enviarCorreoRestablecer } from "./auth.js";
+import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth, enviarCorreoRestablecer, cuentaBloqueada } from "./auth.js";
 import { cargarRecursos } from "./app.js";
 import { escucharNotificaciones, marcarNotificacionLeida, marcarTodasLeidas, borrarNotificacion } from "./notificaciones.js";
 import { aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
@@ -639,10 +639,24 @@ observarSesion((user, perfil) => {
     return;
   }
 
-  if (!perfil || perfil.aprobado !== true) {
+  const estado = cuentaBloqueada(perfil);
+  if (estado.bloqueada) {
     userInfo.innerHTML = `<button class="secondary" onclick="location.reload()">↻</button>`;
     btnAbrirDrawer.classList.add("hidden");
     bellWrapper.classList.add("hidden");
+
+    if (estado.motivo === "suspendido") {
+      document.getElementById("pendingIcon").textContent = "🚫";
+      document.getElementById("pendingTitulo").textContent = "Tu cuenta ha sido suspendida";
+      document.getElementById("pendingTexto").textContent = estado.detalle
+        ? "Motivo: " + estado.detalle
+        : "Contacta a un administrador si crees que esto es un error.";
+    } else {
+      document.getElementById("pendingIcon").textContent = "⏳";
+      document.getElementById("pendingTitulo").textContent = "Tu cuenta está pendiente";
+      document.getElementById("pendingTexto").textContent = "Un administrador debe aprobar tu acceso. Vuelve a intentar más tarde o pregúntale directamente.";
+    }
+
     mostrarSoloVista(pendingView);
     return;
   }
