@@ -199,5 +199,41 @@ service cloud.firestore {
       allow update: if esAdminUsuario();
       allow delete: if esAdminUsuario() || (request.auth != null && resource.data.subidoPor == request.auth.uid);
     }
+
+    match /notificaciones/{notifId} {
+      // Solo el dueño de la notificación puede leerla (o el admin, por soporte)
+      allow read: if request.auth != null &&
+                    (resource.data.paraUid == request.auth.uid ||
+                     get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin");
+
+      // Cualquier usuario autenticado puede crear una notificación PARA OTRO usuario
+      // (ej. al enviar solicitud de amistad), pero no puede crearla ya marcada como leída
+      allow create: if request.auth != null &&
+                      request.resource.data.leida == false;
+
+      // El dueño puede actualizar (marcar como leída) o borrar su propia notificación
+      allow update, delete: if request.auth != null && resource.data.paraUid == request.auth.uid;
+    }
+
+    match /amistades/{amistadId} {
+      function esParteDeLaAmistad() {
+        return request.auth != null && request.auth.uid in resource.data.usuarios;
+      }
+
+      // Solo las dos personas involucradas pueden leer su amistad
+      allow read: if esParteDeLaAmistad();
+
+      // Cualquier usuario autenticado puede iniciar una solicitud, siempre que:
+      // - se incluya a sí mismo en "usuarios"
+      // - quede como "pendiente" (no puede crear una ya "aceptada")
+      // - él mismo sea quien "solicitadoPor"
+      allow create: if request.auth != null &&
+                      request.auth.uid in request.resource.data.usuarios &&
+                      request.resource.data.estado == "pendiente" &&
+                      request.resource.data.solicitadoPor == request.auth.uid;
+
+      // Cualquiera de los dos puede actualizar (aceptar) o borrar (rechazar/eliminar amistad)
+      allow update, delete: if esParteDeLaAmistad();
+    }
   }
 }
