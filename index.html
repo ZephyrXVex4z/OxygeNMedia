@@ -173,6 +173,13 @@
     margin-bottom: 12px;
     display: none;
   }
+  .msg {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .msg.ok { background: rgba(76, 175, 125, 0.12); color: var(--success); }
+  .msg.error { background: rgba(227, 93, 93, 0.12); color: var(--danger); }
   .toggle-link {
     text-align: center;
     margin-top: 16px;
@@ -298,7 +305,13 @@
 
         <button id="btnSubmitAuth" style="width:100%">Entrar</button>
 
-        <div class="toggle-link">
+        <div class="toggle-link" id="forgotPasswordLink">
+          <a id="btnOlvideContrasena">¿Olvidaste tu contraseña?</a>
+        </div>
+
+        <div class="msg" id="resetMsg" style="display:none; margin-top:10px;"></div>
+
+        <div class="toggle-link" style="margin-top:8px;">
           <span id="toggleText">¿No tienes cuenta?</span>
           <a id="toggleLink">Solicitar acceso</a>
         </div>
@@ -352,7 +365,7 @@
 </div>
 
 <script type="module">
-import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth } from "./auth.js";
+import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth, enviarCorreoRestablecer } from "./auth.js";
 import { cargarRecursos } from "./app.js";
 import { escucharNotificaciones, marcarNotificacionLeida, marcarTodasLeidas, borrarNotificacion } from "./notificaciones.js";
 import { aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
@@ -381,6 +394,9 @@ const inputPassword = document.getElementById("inputPassword");
 const btnSubmitAuth = document.getElementById("btnSubmitAuth");
 const toggleLink = document.getElementById("toggleLink");
 const toggleText = document.getElementById("toggleText");
+const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+const btnOlvideContrasena = document.getElementById("btnOlvideContrasena");
+const resetMsg = document.getElementById("resetMsg");
 
 function mostrarError(msg) {
   authError.textContent = msg;
@@ -393,19 +409,47 @@ function ocultarError() {
 toggleLink.addEventListener("click", () => {
   modoRegistro = !modoRegistro;
   ocultarError();
+  resetMsg.style.display = "none";
   if (modoRegistro) {
     authTitle.textContent = "Solicitar acceso";
     nombreField.classList.remove("hidden");
     btnSubmitAuth.textContent = "Solicitar acceso";
     toggleText.textContent = "¿Ya tienes cuenta?";
     toggleLink.textContent = "Iniciar sesión";
+    forgotPasswordLink.classList.add("hidden");
   } else {
     authTitle.textContent = "Iniciar sesión";
     nombreField.classList.add("hidden");
     btnSubmitAuth.textContent = "Entrar";
     toggleText.textContent = "¿No tienes cuenta?";
     toggleLink.textContent = "Solicitar acceso";
+    forgotPasswordLink.classList.remove("hidden");
   }
+});
+
+btnOlvideContrasena.addEventListener("click", async () => {
+  const email = inputEmail.value.trim();
+  resetMsg.style.display = "none";
+
+  if (!email) {
+    resetMsg.textContent = "Escribe tu correo arriba primero, luego da click aquí.";
+    resetMsg.className = "msg error";
+    resetMsg.style.display = "block";
+    return;
+  }
+
+  btnOlvideContrasena.style.pointerEvents = "none";
+  try {
+    await enviarCorreoRestablecer(email);
+    resetMsg.textContent = "Te enviamos un enlace a " + email + " para restablecer tu contraseña. Revisa también spam.";
+    resetMsg.className = "msg ok";
+  } catch (err) {
+    // Por seguridad, Firebase a veces no distingue "correo no existe" — igual mostramos algo útil
+    resetMsg.textContent = traducirErrorAuth(err);
+    resetMsg.className = "msg error";
+  }
+  resetMsg.style.display = "block";
+  btnOlvideContrasena.style.pointerEvents = "auto";
 });
 
 btnSubmitAuth.addEventListener("click", async () => {
