@@ -516,6 +516,7 @@ function construirDrawer(perfil) {
   `;
 
   const links = [
+    { href: "billetera.html", icon: "💰", label: "Mi billetera" },
     { href: "juegos.html", icon: "🎮", label: "Juegos" },
     { href: "perfil.html", icon: "👤", label: "Mi perfil" },
     { href: "amigos.html", icon: "👥", label: "Mis amigos" },
@@ -674,11 +675,14 @@ observarSesion((user, perfil) => {
     });
   }
 
-  userInfo.innerHTML = `<span>👋 ${perfil.nombre.split(" ")[0]}</span>`;
+  userInfo.innerHTML = `
+    <span>👋 ${perfil.nombre.split(" ")[0]}</span>
+    <a href="billetera.html" style="text-decoration:none; color:var(--success); font-size:12px; font-weight:600; border:1px solid var(--border); padding:6px 10px; border-radius:8px;">💰 $${perfil.saldo || 0}</a>
+  `;
   btnPublicarRecurso.classList.remove("hidden");
 
   mostrarSoloVista(resourcesView);
-  cargarRecursos(perfil);
+  cargarRecursos(perfil, uidGlobal);
 });
 </script>
 
