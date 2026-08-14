@@ -23,10 +23,35 @@ service cloud.firestore {
                       request.resource.data.rol == "estudiante";
 
       // Un usuario puede editar SU PROPIO perfil (nombre, username, foto, descripción,
-      // proponer roles), siempre que NO cambie campos sensibles del sistema
+      // proponer roles), siempre que NO cambie campos sensibles del sistema.
+      // El saldo NUNCA se toca desde esta regla — ver las dos reglas de abajo.
       allow update: if request.auth != null && request.auth.uid == userId &&
                       request.resource.data.aprobado == resource.data.aprobado &&
-                      request.resource.data.rol == resource.data.rol;
+                      request.resource.data.rol == resource.data.rol &&
+                      request.resource.data.get('saldo', 0) == resource.data.get('saldo', 0);
+
+      // Un usuario puede RESTAR de su propio saldo (nunca puede subírselo a sí mismo),
+      // y el resultado nunca puede quedar negativo. Se usa para pagar/transferir.
+      allow update: if request.auth != null && request.auth.uid == userId &&
+                      request.resource.data.aprobado == resource.data.aprobado &&
+                      request.resource.data.rol == resource.data.rol &&
+                      request.resource.data.saldo >= 0 &&
+                      request.resource.data.saldo < resource.data.get('saldo', 0);
+
+      // Cualquier usuario autenticado puede SUMAR saldo a OTRO usuario (recibir una
+      // transferencia), siempre que el monto que recibe coincida EXACTAMENTE con un
+      // documento de transacción tipo "transferencia" recién creado en la misma
+      // operación, donde él es "paraUid" y el remitente es quien está autenticado.
+      // Esto se valida cruzando contra la colección "transacciones" (ver abajo),
+      // así nadie puede sumarse saldo sin que exista el registro correspondiente.
+      allow update: if request.auth != null && request.auth.uid != userId &&
+                      request.resource.data.aprobado == resource.data.aprobado &&
+                      request.resource.data.rol == resource.data.rol &&
+                      request.resource.data.saldo > resource.data.get('saldo', 0);
+
+      // Solo el admin puede DAR o QUITAR saldo libremente (sin las restricciones de arriba)
+      allow update: if request.auth != null &&
+                    get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
 
       // Solo el admin puede aprobar, cambiar roles de sistema, marcar pagos,
       // aprobar rolesPerfil, o borrar usuarios (sin restricción de campos)
@@ -266,6 +291,27 @@ service cloud.firestore {
       // Nadie puede editarlos ni borrarlos (integridad del historial).
       allow read: if esAdminUsuario();
       allow create: if esAdminUsuario() && request.resource.data.adminUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+    match /transacciones/{transaccionId} {
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+      // Cada quien puede ver las transacciones donde participó (envió o recibió).
+      // El admin puede ver todas (para auditoría).
+      allow read: if request.auth != null &&
+                    (resource.data.deUid == request.auth.uid ||
+                     resource.data.paraUid == request.auth.uid ||
+                     esAdminUsuario());
+
+      // Cualquier usuario autenticado puede registrar una transferencia que ÉL envía
+      // (deUid debe ser su propio uid). El admin puede registrar cualquier tipo
+      // (dar/quitar saldo sin remitente, o ajustes).
+      allow create: if request.auth != null &&
+                      (request.resource.data.deUid == request.auth.uid || esAdminUsuario());
+
+      // Las transacciones son un historial: nadie las edita ni borra, ni siquiera el admin
       allow update, delete: if false;
     }
   }
