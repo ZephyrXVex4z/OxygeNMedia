@@ -2,7 +2,7 @@
 // Lista de amigos del usuario, con accesos directos a perfil y chat.
 
 import { db } from "./firebase-config.js";
-import { observarSesion } from "./auth.js";
+import { observarSesion, cuentaBloqueada } from "./auth.js";
 import { listarAmigos, eliminarAmistad } from "./amistades.js";
 import {
   collection, addDoc, getDocs, query, where, serverTimestamp
@@ -14,7 +14,7 @@ const listaAmigos = document.getElementById("listaAmigos");
 const emptyAmigos = document.getElementById("emptyAmigos");
 
 observarSesion((user, perfil) => {
-  if (!user || !perfil || perfil.aprobado !== true) {
+  if (!user || cuentaBloqueada(perfil).bloqueada) {
     document.body.innerHTML = "<div style='padding:60px;text-align:center;color:#8b96b0;'>Debes iniciar sesión y estar aprobado para ver tus amigos. <br><br><a href='index.html' style='color:#5b8def;'>Volver al sitio</a></div>";
     return;
   }
@@ -104,4 +104,3 @@ async function iniciarChat(otroUid, otroNombre) {
   const ref = await addDoc(collection(db, "chats"), nuevoChat);
   location.href = "chat.html?abrir=" + ref.id;
 }
-
