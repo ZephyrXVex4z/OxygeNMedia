@@ -113,6 +113,19 @@ export function observarSesion(callback) {
   });
 }
 
+// Determina si una cuenta debe tratarse como bloqueada: no aprobada, o suspendida
+// (y si la suspensión es temporal, ya venció). Se usa en cada página para decidir
+// si mostrar el contenido o una pantalla de acceso restringido.
+export function cuentaBloqueada(perfil) {
+  if (!perfil || perfil.aprobado !== true) return { bloqueada: true, motivo: "pendiente" };
+  if (perfil.suspendido === true) {
+    const hasta = perfil.suspensionHasta;
+    const yaVencio = hasta && hasta.toDate && hasta.toDate().getTime() < Date.now();
+    if (!yaVencio) return { bloqueada: true, motivo: "suspendido", detalle: perfil.suspensionMotivo || "" };
+  }
+  return { bloqueada: false };
+}
+
 // Traduce errores comunes de Firebase Auth a mensajes en español
 export function traducirErrorAuth(error) {
   const codigo = error.code || "";
