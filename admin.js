@@ -3,6 +3,7 @@
 
 import { db } from "./firebase-config.js";
 import { observarSesion, cerrarSesion } from "./auth.js";
+import { registrarLog, obtenerLogsRecientes } from "./logs.js";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, setDoc,
   query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove
@@ -29,6 +30,7 @@ observarSesion((user, perfil) => {
   cargarTodos();
   cargarRolesPendientes();
   cargarJuegosPendientesAdmin();
+  cargarLogs();
 });
 
 // --- Tabs ---
@@ -41,6 +43,7 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("tabTodos").classList.add("hidden");
     document.getElementById("tabRoles").classList.add("hidden");
     document.getElementById("tabJuegos").classList.add("hidden");
+    document.getElementById("tabRegistro").classList.add("hidden");
     document.getElementById("tab" + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).classList.remove("hidden");
   });
 });
@@ -291,17 +294,24 @@ async function cargarTodos() {
 
   snap.forEach(docSnap => {
     const u = docSnap.data();
+    const estaSuspendido = u.suspendido === true;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${u.nombre}</td>
       <td>${u.email}</td>
       <td>${u.rol}</td>
-      <td><span class="badge ${u.aprobado ? "gratis" : "pago"}">${u.aprobado ? "Aprobado" : "Pendiente"}</span></td>
+      <td>
+        <span class="badge ${u.aprobado ? "gratis" : "pago"}">${u.aprobado ? "Aprobado" : "Pendiente"}</span>
+        ${estaSuspendido ? `<span class="badge pago" style="background:rgba(227,93,93,0.15); color:var(--danger);">Suspendido</span>` : ""}
+      </td>
       <td class="row-actions">
         <button class="secondary" data-pagos="${docSnap.id}">Pagos</button>
         ${u.rol !== "admin"
           ? `<button class="secondary" data-makeadmin="${docSnap.id}">Hacer admin</button>`
           : ""}
+        ${estaSuspendido
+          ? `<button class="success" data-reactivar="${docSnap.id}" data-nombre="${u.nombre}">Reactivar</button>`
+          : `<button class="danger" data-suspender="${docSnap.id}" data-nombre="${u.nombre}">Suspender</button>`}
         <button class="danger" data-deluser="${docSnap.id}">Borrar</button>
       </td>
     `;
@@ -320,6 +330,30 @@ async function cargarTodos() {
     });
   });
 
+  tbody.querySelectorAll("[data-suspender]").forEach(btn => {
+    btn.addEventListener("click", () => abrirModalSuspender(btn.dataset.suspender, btn.dataset.nombre));
+  });
+
+  tbody.querySelectorAll("[data-reactivar]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Reactivar la cuenta de " + btn.dataset.nombre + "?")) return;
+      await updateDoc(doc(db, "usuarios", btn.dataset.reactivar), {
+        suspendido: false,
+        suspensionMotivo: "",
+        suspensionHasta: null
+      });
+      await registrarLog({
+        tipo: "levantar_suspension",
+        adminUid: adminActual.uid,
+        adminNombre: adminActual.nombre,
+        objetivoUid: btn.dataset.reactivar,
+        objetivoNombre: btn.dataset.nombre,
+        detalle: "Cuenta reactivada"
+      });
+      cargarTodos();
+    });
+  });
+
   tbody.querySelectorAll("[data-deluser]").forEach(btn => {
     btn.addEventListener("click", async () => {
       if (!confirm("¿Borrar este usuario? (Esto no borra su cuenta de acceso, solo su perfil)")) return;
@@ -328,6 +362,63 @@ async function cargarTodos() {
     });
   });
 }
+
+// ============ SUSPENSIÓN DE CUENTAS ============
+
+const modalSuspender = document.getElementById("modalSuspender");
+const suspenderUsuarioNombre = document.getElementById("suspenderUsuarioNombre");
+const suspenderMotivo = document.getElementById("suspenderMotivo");
+const suspenderDuracion = document.getElementById("suspenderDuracion");
+let usuarioASuspenderId = null;
+let usuarioASuspenderNombre = null;
+
+function abrirModalSuspender(uid, nombre) {
+  usuarioASuspenderId = uid;
+  usuarioASuspenderNombre = nombre;
+  suspenderUsuarioNombre.textContent = "Suspender a " + nombre;
+  suspenderMotivo.value = "";
+  suspenderDuracion.value = "7";
+  modalSuspender.classList.remove("hidden");
+}
+
+document.getElementById("btnCancelarSuspender").addEventListener("click", () => {
+  modalSuspender.classList.add("hidden");
+});
+
+document.getElementById("btnConfirmarSuspender").addEventListener("click", async () => {
+  if (!usuarioASuspenderId) return;
+  const motivo = suspenderMotivo.value.trim();
+  const duracion = suspenderDuracion.value;
+
+  let hasta = null;
+  if (duracion !== "permanente") {
+    const dias = Number(duracion);
+    hasta = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
+  }
+
+  try {
+    await updateDoc(doc(db, "usuarios", usuarioASuspenderId), {
+      suspendido: true,
+      suspensionMotivo: motivo,
+      suspensionHasta: hasta
+    });
+
+    await registrarLog({
+      tipo: "suspension",
+      adminUid: adminActual.uid,
+      adminNombre: adminActual.nombre,
+      objetivoUid: usuarioASuspenderId,
+      objetivoNombre: usuarioASuspenderNombre,
+      detalle: (duracion === "permanente" ? "Suspensión permanente" : `Suspensión por ${duracion} días`) +
+               (motivo ? ` — Motivo: ${motivo}` : "")
+    });
+
+    modalSuspender.classList.add("hidden");
+    cargarTodos();
+  } catch (err) {
+    alert("Error al suspender: " + err.message);
+  }
+});
 
 // ============ PAGOS (recursosComprados) ============
 
@@ -504,5 +595,41 @@ async function cargarJuegosPendientesAdmin() {
       await deleteDoc(doc(db, "juegos", btn.dataset.rejectJuego));
       cargarJuegosPendientesAdmin();
     });
+  });
+}
+
+// ============ REGISTRO DE MODERACIÓN (LOGS) ============
+
+const ETIQUETAS_TIPO_LOG = {
+  suspension: "🚫 Suspensión",
+  levantar_suspension: "✅ Reactivación",
+  aprobacion_usuario: "👤 Usuario aprobado",
+  borrado_mensaje: "🗑️ Mensaje borrado",
+  borrado_sugerencia: "🗑️ Sugerencia borrada",
+  borrado_recurso: "🗑️ Recurso borrado"
+};
+
+async function cargarLogs() {
+  const logs = await obtenerLogsRecientes(100);
+  const tbody = document.getElementById("tablaLogs");
+  const empty = document.getElementById("emptyLogs");
+  tbody.innerHTML = "";
+
+  if (logs.length === 0) {
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  logs.forEach(log => {
+    const fecha = log.fecha ? log.fecha.toDate().toLocaleString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${fecha}</td>
+      <td>${log.adminNombre}</td>
+      <td>${ETIQUETAS_TIPO_LOG[log.tipo] || log.tipo}${log.objetivoNombre ? " — " + log.objetivoNombre : ""}</td>
+      <td style="font-size:12px; color:var(--text-dim);">${log.detalle || ""}</td>
+    `;
+    tbody.appendChild(tr);
   });
 }
