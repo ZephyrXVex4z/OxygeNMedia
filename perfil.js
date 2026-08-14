@@ -2,7 +2,7 @@
 // Edición de perfil: nombre, @username único, foto, descripción, y roles
 
 import { db } from "./firebase-config.js";
-import { observarSesion } from "./auth.js";
+import { observarSesion, cuentaBloqueada } from "./auth.js";
 import {
   doc, getDoc, updateDoc, collection, addDoc, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -36,15 +36,40 @@ let misRolesPerfil = [];       // roles ya aprobados que tiene el usuario
 let misRolesPendientes = [];   // roles que propuso y esperan aprobación
 
 observarSesion((user, perfil) => {
-  if (!user || !perfil || perfil.aprobado !== true) {
+  if (!user || cuentaBloqueada(perfil).bloqueada) {
     document.body.innerHTML = "<div style='padding:60px;text-align:center;color:#8b96b0;'>Debes iniciar sesión y estar aprobado para ver tu perfil. <br><br><a href='index.html' style='color:#5b8def;'>Volver al sitio</a></div>";
     return;
   }
   usuarioActual = { uid: user.uid };
   perfilActual = perfil;
   cargarDatosEnFormulario();
-  cargarRolesDisponibles();
+  cargarRolesDisponibles().then(() => sincronizarRolesPendientesAprobados());
 });
+
+// Si alguno de mis roles "pendientes" ya fue aprobado por el admin,
+// lo movemos automáticamente a roles activos
+async function sincronizarRolesPendientesAprobados() {
+  const pendientesActuales = perfilActual.rolesPendientes || [];
+  if (pendientesActuales.length === 0) return;
+
+  const yaAprobados = pendientesActuales.filter(r => rolesAprobadosDisponibles.includes(r));
+  if (yaAprobados.length === 0) return;
+
+  const nuevosRolesPerfil = [...new Set([...(perfilActual.rolesPerfil || []), ...yaAprobados])];
+  const nuevosPendientes = pendientesActuales.filter(r => !yaAprobados.includes(r));
+
+  await updateDoc(doc(db, "usuarios", usuarioActual.uid), {
+    rolesPerfil: nuevosRolesPerfil,
+    rolesPendientes: nuevosPendientes
+  });
+
+  perfilActual.rolesPerfil = nuevosRolesPerfil;
+  perfilActual.rolesPendientes = nuevosPendientes;
+  misRolesPerfil = nuevosRolesPerfil;
+  misRolesPendientes = nuevosPendientes;
+  renderRolesActuales();
+  renderRolesDisponibles();
+}
 
 function cargarDatosEnFormulario() {
   nombreActual.textContent = perfilActual.nombre || "";
@@ -253,4 +278,3 @@ btnGuardarPerfil.addEventListener("click", async () => {
   }
   btnGuardarPerfil.disabled = false;
 });
-    
