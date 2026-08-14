@@ -10,6 +10,7 @@ import {
 
 const deniedView = document.getElementById("deniedView");
 const adminPanel = document.getElementById("adminPanel");
+let adminActual = null;
 
 document.getElementById("btnLogout").addEventListener("click", cerrarSesion);
 
@@ -20,6 +21,7 @@ observarSesion((user, perfil) => {
     adminPanel.classList.add("hidden");
     return;
   }
+  adminActual = { uid: user.uid, ...perfil };
   deniedView.classList.add("hidden");
   adminPanel.classList.remove("hidden");
   cargarRecursos();
@@ -140,6 +142,8 @@ document.getElementById("btnGuardarRecurso").addEventListener("click", async () 
     } else {
       dataPublica.fechaSubida = serverTimestamp();
       dataPublica.compradoPor = [];
+      dataPublica.subidoPor = adminActual.uid;
+      dataPublica.subidoPorNombre = adminActual.nombre;
       const ref = await addDoc(collection(db, "recursos"), dataPublica);
       idUsado = ref.id;
       mostrarMsg(msgRecurso, "Recurso creado.", "ok");
