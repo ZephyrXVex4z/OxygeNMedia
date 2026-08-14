@@ -218,7 +218,7 @@
       <div class="card">
         <h3>Todos los usuarios</h3>
         <table>
-          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Saldo</th><th>Acciones</th></tr></thead>
           <tbody id="tablaTodos"></tbody>
         </table>
       </div>
@@ -296,6 +296,24 @@
       <button class="danger" id="btnConfirmarSuspender" style="flex:1;">Suspender</button>
       <button class="secondary" id="btnCancelarSuspender">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal: dar/quitar saldo -->
+<div class="hidden" id="modalSaldo" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50;">
+  <div class="card" style="max-width:420px; width:90%;">
+    <h3 id="saldoUsuarioNombre">Gestionar saldo</h3>
+    <p style="font-size:13px; color:var(--text-dim);" id="saldoUsuarioActual">Saldo actual: $0</p>
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Monto</label>
+    <input type="number" id="saldoMonto" placeholder="Ej. 100" min="1" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:#10182a; color:var(--text); font-size:14px; margin-bottom:10px;">
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Motivo (opcional)</label>
+    <input type="text" id="saldoMotivo" placeholder="Ej. Pago en efectivo recibido" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:#10182a; color:var(--text); font-size:14px; margin-bottom:14px;">
+    <div style="display:flex; gap:8px;">
+      <button class="success" id="btnDarSaldo" style="flex:1;">Dar</button>
+      <button class="danger" id="btnQuitarSaldo" style="flex:1;">Quitar</button>
+      <button class="secondary" id="btnCerrarSaldo">Cancelar</button>
+    </div>
+    <div class="msg" id="msgSaldo" style="display:none; margin-top:10px;"></div>
   </div>
 </div>
 
