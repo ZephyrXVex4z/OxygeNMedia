@@ -3,7 +3,7 @@
 // El admin sigue usando admin.html para recursos de paga o edición avanzada.
 
 import { db } from "./firebase-config.js";
-import { observarSesion } from "./auth.js";
+import { observarSesion, cuentaBloqueada } from "./auth.js";
 import {
   collection, doc, addDoc, setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -19,7 +19,7 @@ const btnPublicar = document.getElementById("btnPublicar");
 const msg = document.getElementById("msg");
 
 observarSesion((user, perfil) => {
-  if (!user || !perfil || perfil.aprobado !== true) {
+  if (!user || cuentaBloqueada(perfil).bloqueada) {
     document.body.innerHTML = "<div style='padding:60px;text-align:center;color:#8b96b0;'>Debes iniciar sesión y estar aprobado para publicar recursos. <br><br><a href='index.html' style='color:#5b8def;'>Volver al sitio</a></div>";
     return;
   }
