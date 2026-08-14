@@ -4,7 +4,7 @@
 // de crear un índice compuesto en Firestore — ordenamos en JS tras recibir los datos.
 
 import { db } from "./firebase-config.js";
-import { observarSesion } from "./auth.js";
+import { observarSesion, cuentaBloqueada } from "./auth.js";
 import { aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
 import {
   collection, doc, getDoc, getDocs, query, where
@@ -19,7 +19,7 @@ const listaEnviadas = document.getElementById("listaEnviadas");
 const emptyEnviadas = document.getElementById("emptyEnviadas");
 
 observarSesion((user, perfil) => {
-  if (!user || !perfil || perfil.aprobado !== true) {
+  if (!user || cuentaBloqueada(perfil).bloqueada) {
     document.body.innerHTML = "<div style='padding:60px;text-align:center;color:#8b96b0;'>Debes iniciar sesión y estar aprobado para ver esto. <br><br><a href='index.html' style='color:#5b8def;'>Volver al sitio</a></div>";
     return;
   }
@@ -137,4 +137,3 @@ function filaHTML(u, esRecibida) {
     </div>
   `;
 }
-
