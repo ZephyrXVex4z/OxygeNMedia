@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Muro — OxygeNMedia</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5b8def">
+<script src="tema-inline.js"></script>
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #0f1420; --card: #1a2233; --border: #2a3550; --accent: #5b8def;
+    --accent-hover: #4a7ad9; --text: #e8ecf5; --text-dim: #8b96b0;
+    --success: #4caf7d; --danger: #e35d5d; --warn: #e0a941;
+    --radius: 14px; --card-shadow: none; --input-bg: #10182a;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-weight-heading: 700;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    font-family: var(--font-body); background: var(--bg); color: var(--text);
+    overscroll-behavior: none; transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: var(--font-weight-heading); }
+  .app-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+  .content-area { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  header h1 { font-size: 17px; margin: 0; }
+  button {
+    font-family: var(--font-body);
+    background: var(--accent); color: white; border: none; padding: 9px 15px;
+    border-radius: var(--radius); font-size: 13px; cursor: pointer; font-weight: 600;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:active { transform: scale(0.97); }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  button.icon-only { background: transparent; padding: 5px 8px; }
+  .container { max-width: 560px; margin: 0 auto; padding: 16px; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .tab-btn {
+    flex: 1; padding: 9px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: transparent; color: var(--text-dim); font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .composer {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--card-shadow); padding: 16px; margin-bottom: 18px;
+  }
+  .composer textarea {
+    width: 100%; min-height: 70px; border: none; background: transparent; color: var(--text);
+    font-family: var(--font-body); font-size: 14px; resize: vertical; padding: 0; margin-bottom: 10px;
+  }
+  .composer textarea:focus { outline: none; }
+  .composer-extra { margin-top: 10px; }
+  .composer-extra input {
+    width: 100%; padding: 9px 11px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: var(--input-bg); color: var(--text); font-size: 13px; margin-bottom: 8px; font-family: var(--font-body);
+  }
+  .composer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .composer-tools { display: flex; gap: 6px; }
+  .composer-tools button { padding: 6px 10px; font-size: 12px; }
+
+  .cita-recurso-preview {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--input-bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 8px 12px; font-size: 12px; margin-bottom: 8px;
+  }
+
+  .post {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--card-shadow); padding: 16px; margin-bottom: 14px;
+  }
+  .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .post-avatar {
+    width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: white; font-size: 14px;
+  }
+  .post-header .nombre { font-size: 13.5px; font-weight: 600; }
+  .post-header .fecha { font-size: 11px; color: var(--text-dim); }
+  .post-texto { font-size: 14px; line-height: 1.5; margin-bottom: 10px; white-space: pre-wrap; }
+  .post-imagen { width: 100%; border-radius: var(--radius); margin-bottom: 10px; max-height: 380px; object-fit: cover; }
+
+  .cita-recurso {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
+    margin-bottom: 10px; text-decoration: none; color: var(--text); font-size: 12.5px;
+  }
+  .cita-recurso:hover { border-color: var(--accent); }
+
+  .post-actions { display: flex; gap: 16px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .post-action {
+    display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-dim);
+    cursor: pointer; background: none; border: none; padding: 4px 6px; font-family: var(--font-body);
+  }
+  .post-action.liked { color: var(--danger); font-weight: 600; }
+  .post-action:hover { color: var(--text); }
+
+  .comentarios-box { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; display: none; }
+  .comentarios-box.open { display: block; }
+  .comentario-item { display: flex; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+  .comentario-item .nombre { font-weight: 600; margin-right: 4px; }
+  .comentario-input-row { display: flex; gap: 8px; margin-top: 8px; }
+  .comentario-input-row input {
+    flex: 1; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--input-bg); color: var(--text); font-size: 13px; font-family: var(--font-body);
+  }
+  .comentario-input-row button { padding: 8px 14px; font-size: 12px; border-radius: 999px; }
+
+  .empty { text-align: center; color: var(--text-dim); padding: 40px 20px; font-size: 13px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <header>
+    <h1>🌐 Muro</h1>
+    <a href="index.html"><button class="secondary">Volver</button></a>
+  </header>
+
+  <div class="content-area">
+    <div class="container">
+
+      <div class="composer">
+        <textarea id="inputTexto" placeholder="¿Qué está pasando?"></textarea>
+        <div class="composer-extra hidden" id="extraImagen">
+          <input type="text" id="inputImagenURL" placeholder="https://i.imgur.com/ejemplo.jpg">
+        </div>
+        <div id="citaPreview"></div>
+        <div class="composer-actions">
+          <div class="composer-tools">
+            <button class="secondary" id="btnToggleImagen">🖼️ Imagen</button>
+            <button class="secondary" id="btnCitarRecurso">📎 Citar recurso</button>
+          </div>
+          <button id="btnPublicar">Publicar</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-feed="general">Todos</button>
+        <button class="tab-btn" data-feed="amigos">Solo amigos</button>
+      </div>
+
+      <div id="listaFeed">Cargando...</div>
+      <div class="empty hidden" id="emptyFeed">No hay publicaciones todavía. ¡Sé el primero!</div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module" src="muro-app.js"></script>
+</body>
+</html>
