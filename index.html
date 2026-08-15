@@ -6,6 +6,42 @@
 <title>OxygeNMedia</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b8def">
+<script>
+  // Se ejecuta ANTES de que se pinte la página, para que no haya un "flash"
+  // del tema por defecto antes de aplicar el tema que el usuario ya eligió.
+  // La lista de variables debe reflejar los mismos temas de temas.js.
+  (function() {
+    try {
+      var TEMAS_RAPIDO = {
+        terminal: {"--bg":"#0A0E0A","--card":"#0F1710","--border":"#1F8C52","--accent":"#3FFF8F","--accent-hover":"#2FE07A","--text":"#C9F5D8","--text-dim":"#5C9C77","--danger":"#FF5C5C","--success":"#3FFF8F","--warn":"#FFB627","--radius":"2px","--card-shadow":"none","--font-weight-heading":"700","--input-bg":"#050805"},
+        neobrutal: {"--bg":"#FFF4E0","--card":"#FFFFFF","--border":"#16161A","--accent":"#FF5C8A","--accent-hover":"#E84577","--text":"#16161A","--text-dim":"#4A453D","--danger":"#E84545","--success":"#6FCF97","--warn":"#FFD23F","--radius":"10px","--card-shadow":"5px 5px 0 var(--border)","--font-weight-heading":"700","--input-bg":"#FFF4E0"},
+        editorial: {"--bg":"#EFE8DC","--card":"#F8F4EB","--border":"#D8CFBE","--accent":"#A65B3F","--accent-hover":"#8C4A32","--text":"#2B2620","--text-dim":"#6B6255","--danger":"#B0473A","--success":"#6B7A5E","--warn":"#B8863B","--radius":"2px","--card-shadow":"none","--font-weight-heading":"400","--input-bg":"#EFE8DC"},
+        aurora: {"--bg":"#0D0B1F","--card":"rgba(255,255,255,0.06)","--border":"rgba(255,255,255,0.14)","--accent":"#B08CFF","--accent-hover":"#9A6FFF","--text":"#F0EEFF","--text-dim":"#9C93C4","--danger":"#FF7A9C","--success":"#7CE8C4","--warn":"#FFC98C","--radius":"16px","--card-shadow":"0 8px 32px rgba(120,80,255,0.15)","--font-weight-heading":"700","--input-bg":"rgba(255,255,255,0.05)"},
+        minimal: {"--bg":"#FFFFFF","--card":"#FFFFFF","--border":"#E4E4E4","--accent":"#111111","--accent-hover":"#333333","--text":"#111111","--text-dim":"#8A8A8A","--danger":"#D64545","--success":"#2E9E5B","--warn":"#B8862E","--radius":"6px","--card-shadow":"none","--font-weight-heading":"600","--input-bg":"#F7F7F7"}
+      };
+      var FUENTES_RAPIDO = {
+        terminal: {display:"'JetBrains Mono', monospace", body:"'JetBrains Mono', monospace", google:"JetBrains+Mono:wght@400;500;700"},
+        neobrutal: {display:"'Space Grotesk', sans-serif", body:"'Space Grotesk', sans-serif", google:"Space+Grotesk:wght@500;700"},
+        editorial: {display:"'Fraunces', serif", body:"'Inter', sans-serif", google:"Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600"},
+        aurora: {display:"'Outfit', sans-serif", body:"'Manrope', sans-serif", google:"Outfit:wght@400;500;700&family=Manrope:wght@400;500"},
+        minimal: {display:"'Instrument Sans', sans-serif", body:"'Instrument Sans', sans-serif", google:"Instrument+Sans:wght@400;500;600"}
+      };
+      var idTema = localStorage.getItem("oxygenmedia_tema") || "terminal";
+      var vars = TEMAS_RAPIDO[idTema] || TEMAS_RAPIDO.terminal;
+      var fuentes = FUENTES_RAPIDO[idTema] || FUENTES_RAPIDO.terminal;
+      var root = document.documentElement;
+      for (var k in vars) root.style.setProperty(k, vars[k]);
+      root.style.setProperty("--font-display", fuentes.display);
+      root.style.setProperty("--font-body", fuentes.body);
+
+      var link = document.createElement("link");
+      link.id = "tema-google-font";
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=" + fuentes.google + "&display=swap";
+      document.head.appendChild(link);
+    } catch (e) { /* si algo falla, se queda con el tema default del CSS */ }
+  })();
+</script>
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root {
@@ -19,17 +55,25 @@
     --danger: #e35d5d;
     --success: #4caf7d;
     --warn: #e0a941;
+    --radius: 14px;
+    --card-shadow: none;
+    --input-bg: #10182a;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-weight-heading: 700;
   }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
     height: 100%;
     overflow: hidden; /* evita scroll de la página completa; solo el contenido interno hace scroll */
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-body);
     background: var(--bg);
     color: var(--text);
     overscroll-behavior: none;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: var(--font-weight-heading); }
 
   /* Layout raíz: header fijo arriba + área de contenido que ocupa el resto */
   .app-shell {
@@ -103,7 +147,7 @@
     display: flex; flex-direction: column; gap: 4px;
   }
   .notif-item:last-child { border-bottom: none; }
-  .notif-item:hover { background: #10182a; }
+  .notif-item:hover { background: var(--input-bg); }
   .notif-item.no-leida { background: rgba(91,141,239,0.06); }
   .notif-item .notif-texto { color: var(--text); }
   .notif-item .notif-fecha { font-size: 11px; color: var(--text-dim); }
@@ -124,12 +168,15 @@
     color: white;
     border: none;
     padding: 10px 16px;
-    border-radius: 8px;
+    border-radius: var(--radius);
     font-size: 14px;
     cursor: pointer;
     font-weight: 600;
+    font-family: var(--font-body);
+    transition: background-color 0.2s ease, transform 0.1s ease;
   }
   button:hover { background: var(--accent-hover); }
+  button:active { transform: scale(0.97); }
   button.secondary {
     background: transparent;
     border: 1px solid var(--border);
@@ -144,17 +191,19 @@
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: var(--radius);
+    box-shadow: var(--card-shadow);
     padding: 28px;
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
   .card h2 { margin-top: 0; }
   input, select {
     width: 100%;
     padding: 12px;
     margin-bottom: 12px;
-    border-radius: 8px;
+    border-radius: var(--radius);
     border: 1px solid var(--border);
-    background: #10182a;
+    background: var(--input-bg);
     color: var(--text);
     font-size: 14px;
   }
@@ -252,7 +301,7 @@
     padding: 13px 18px; color: var(--text); text-decoration: none; font-size: 14px;
     cursor: pointer; border: none; background: none; width: 100%; text-align: left;
   }
-  .drawer-link:hover { background: #10182a; }
+  .drawer-link:hover { background: var(--input-bg); }
   .drawer-link .icon { font-size: 17px; width: 22px; text-align: center; }
   .drawer-section-title {
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
@@ -260,6 +309,22 @@
   }
   .drawer-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
   .drawer-footer button { width: 100%; }
+
+  .tema-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 10px; border: 1px solid var(--border);
+    background: transparent; cursor: pointer; width: 100%; text-align: left;
+    font-size: 13px; color: var(--text); transition: all 0.15s ease;
+  }
+  .tema-chip:hover { background: rgba(255,255,255,0.05); }
+  .tema-chip.activo { border-color: var(--accent); background: rgba(91,141,239,0.08); }
+  .tema-chip .tema-swatch {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+  .tema-chip .tema-nombre { font-weight: 600; }
+  .tema-chip .tema-check { margin-left: auto; opacity: 0; color: var(--accent); }
+  .tema-chip.activo .tema-check { opacity: 1; }
 </style>
 </head>
 <body>
@@ -359,6 +424,8 @@
 <div class="drawer" id="drawer">
   <div class="drawer-profile" id="drawerProfile"></div>
   <div class="drawer-links" id="drawerLinks"></div>
+  <div class="drawer-section-title">Apariencia</div>
+  <div id="temaSelector" style="padding: 0 14px 14px; display: flex; flex-direction: column; gap: 6px;"></div>
   <div class="drawer-footer">
     <button class="secondary" id="btnLogoutDrawer">Cerrar sesión</button>
   </div>
@@ -369,6 +436,7 @@ import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducir
 import { cargarRecursos } from "./app.js";
 import { escucharNotificaciones, marcarNotificacionLeida, marcarTodasLeidas, borrarNotificacion } from "./notificaciones.js";
 import { aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
+import { TEMAS, aplicarTema, obtenerTemaGuardado } from "./temas.js";
 
 let modoRegistro = false;
 let perfilGlobal = null;
@@ -535,6 +603,29 @@ function construirDrawer(perfil) {
   }
 
   drawerLinks.innerHTML = html;
+  renderSelectorTemas();
+}
+
+// ============ SELECTOR DE TEMAS ============
+
+const temaSelector = document.getElementById("temaSelector");
+
+function renderSelectorTemas() {
+  const temaActivo = obtenerTemaGuardado();
+  temaSelector.innerHTML = Object.entries(TEMAS).map(([id, t]) => `
+    <button class="tema-chip ${id === temaActivo ? "activo" : ""}" data-tema="${id}" type="button">
+      <span class="tema-swatch" style="background:${t.vars["--bg"]}; border:1px solid ${t.vars["--border"]};">${t.emoji}</span>
+      <span class="tema-nombre">${t.nombre}</span>
+      <span class="tema-check">✓</span>
+    </button>
+  `).join("");
+
+  temaSelector.querySelectorAll("[data-tema]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      aplicarTema(btn.dataset.tema);
+      renderSelectorTemas();
+    });
+  });
 }
 
 document.getElementById("btnLogoutDrawer").addEventListener("click", cerrarSesion);
