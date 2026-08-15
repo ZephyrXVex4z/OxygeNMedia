@@ -6,15 +6,22 @@
 <title>Mis amigos — OxygeNMedia</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b8def">
+<script src="tema-inline.js"></script>
 <style>
   :root {
     --bg: #0f1420; --card: #1a2233; --border: #2a3550; --accent: #5b8def;
     --accent-hover: #4a7ad9; --text: #e8ecf5; --text-dim: #8b96b0;
+    --radius: 14px;
+    --card-shadow: none;
+    --input-bg: #10182a;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-weight-heading: 700;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-body);
     background: var(--bg); color: var(--text); min-height: 100vh;
   }
   header {
@@ -22,13 +29,15 @@
     padding: 12px 20px; border-bottom: 1px solid var(--border);
   }
   header h1 { font-size: 17px; margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: var(--font-weight-heading); }
   button {
+    font-family: var(--font-body);
     background: var(--accent); color: white; border: none; padding: 9px 14px;
-    border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: 600;
+    border-radius: var(--radius); font-size: 13px; cursor: pointer; font-weight: 600;
   }
   button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
   .container { max-width: 640px; margin: 24px auto; padding: 0 20px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
 
   .friend-item {
     display: flex; align-items: center; gap: 12px;
@@ -70,4 +79,3 @@
 <script type="module" src="amigos.js"></script>
 </body>
 </html>
-
