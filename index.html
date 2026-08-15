@@ -6,42 +6,7 @@
 <title>OxygeNMedia</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b8def">
-<script>
-  // Se ejecuta ANTES de que se pinte la página, para que no haya un "flash"
-  // del tema por defecto antes de aplicar el tema que el usuario ya eligió.
-  // La lista de variables debe reflejar los mismos temas de temas.js.
-  (function() {
-    try {
-      var TEMAS_RAPIDO = {
-        terminal: {"--bg":"#0A0E0A","--card":"#0F1710","--border":"#1F8C52","--accent":"#3FFF8F","--accent-hover":"#2FE07A","--text":"#C9F5D8","--text-dim":"#5C9C77","--danger":"#FF5C5C","--success":"#3FFF8F","--warn":"#FFB627","--radius":"2px","--card-shadow":"none","--font-weight-heading":"700","--input-bg":"#050805"},
-        neobrutal: {"--bg":"#FFF4E0","--card":"#FFFFFF","--border":"#16161A","--accent":"#FF5C8A","--accent-hover":"#E84577","--text":"#16161A","--text-dim":"#4A453D","--danger":"#E84545","--success":"#6FCF97","--warn":"#FFD23F","--radius":"10px","--card-shadow":"5px 5px 0 var(--border)","--font-weight-heading":"700","--input-bg":"#FFF4E0"},
-        editorial: {"--bg":"#EFE8DC","--card":"#F8F4EB","--border":"#D8CFBE","--accent":"#A65B3F","--accent-hover":"#8C4A32","--text":"#2B2620","--text-dim":"#6B6255","--danger":"#B0473A","--success":"#6B7A5E","--warn":"#B8863B","--radius":"2px","--card-shadow":"none","--font-weight-heading":"400","--input-bg":"#EFE8DC"},
-        aurora: {"--bg":"#0D0B1F","--card":"rgba(255,255,255,0.06)","--border":"rgba(255,255,255,0.14)","--accent":"#B08CFF","--accent-hover":"#9A6FFF","--text":"#F0EEFF","--text-dim":"#9C93C4","--danger":"#FF7A9C","--success":"#7CE8C4","--warn":"#FFC98C","--radius":"16px","--card-shadow":"0 8px 32px rgba(120,80,255,0.15)","--font-weight-heading":"700","--input-bg":"rgba(255,255,255,0.05)"},
-        minimal: {"--bg":"#FFFFFF","--card":"#FFFFFF","--border":"#E4E4E4","--accent":"#111111","--accent-hover":"#333333","--text":"#111111","--text-dim":"#8A8A8A","--danger":"#D64545","--success":"#2E9E5B","--warn":"#B8862E","--radius":"6px","--card-shadow":"none","--font-weight-heading":"600","--input-bg":"#F7F7F7"}
-      };
-      var FUENTES_RAPIDO = {
-        terminal: {display:"'JetBrains Mono', monospace", body:"'JetBrains Mono', monospace", google:"JetBrains+Mono:wght@400;500;700"},
-        neobrutal: {display:"'Space Grotesk', sans-serif", body:"'Space Grotesk', sans-serif", google:"Space+Grotesk:wght@500;700"},
-        editorial: {display:"'Fraunces', serif", body:"'Inter', sans-serif", google:"Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600"},
-        aurora: {display:"'Outfit', sans-serif", body:"'Manrope', sans-serif", google:"Outfit:wght@400;500;700&family=Manrope:wght@400;500"},
-        minimal: {display:"'Instrument Sans', sans-serif", body:"'Instrument Sans', sans-serif", google:"Instrument+Sans:wght@400;500;600"}
-      };
-      var idTema = localStorage.getItem("oxygenmedia_tema") || "terminal";
-      var vars = TEMAS_RAPIDO[idTema] || TEMAS_RAPIDO.terminal;
-      var fuentes = FUENTES_RAPIDO[idTema] || FUENTES_RAPIDO.terminal;
-      var root = document.documentElement;
-      for (var k in vars) root.style.setProperty(k, vars[k]);
-      root.style.setProperty("--font-display", fuentes.display);
-      root.style.setProperty("--font-body", fuentes.body);
-
-      var link = document.createElement("link");
-      link.id = "tema-google-font";
-      link.rel = "stylesheet";
-      link.href = "https://fonts.googleapis.com/css2?family=" + fuentes.google + "&display=swap";
-      document.head.appendChild(link);
-    } catch (e) { /* si algo falla, se queda con el tema default del CSS */ }
-  })();
-</script>
+<script src="tema-inline.js"></script>
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root {
@@ -119,7 +84,7 @@
   .bell-wrapper { position: relative; }
   .bell-btn {
     background: transparent; border: 1px solid var(--border); color: var(--text);
-    width: 38px; height: 38px; border-radius: 8px; font-size: 17px;
+    width: 38px; height: 38px; border-radius: var(--radius); font-size: 17px;
     display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
   }
   .bell-btn:hover { background: var(--card); }
@@ -134,7 +99,7 @@
   .notif-panel {
     position: absolute; top: calc(100% + 8px); right: 0; width: 320px; max-width: 88vw;
     max-height: 420px; overflow-y: auto; background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 80; display: none;
+    border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 80; display: none;
   }
   .notif-panel.open { display: block; }
   .notif-panel-header {
@@ -217,14 +182,14 @@
     background: rgba(227, 93, 93, 0.12);
     color: var(--danger);
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: var(--radius);
     font-size: 13px;
     margin-bottom: 12px;
     display: none;
   }
   .msg {
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: var(--radius);
     font-size: 13px;
   }
   .msg.ok { background: rgba(76, 175, 125, 0.12); color: var(--success); }
@@ -250,7 +215,7 @@
   .resource-card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius);
     padding: 18px;
   }
   .resource-card h3 { margin: 0 0 8px 0; font-size: 16px; }
@@ -312,7 +277,7 @@
 
   .tema-chip {
     display: flex; align-items: center; gap: 10px;
-    padding: 9px 10px; border-radius: 10px; border: 1px solid var(--border);
+    padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--border);
     background: transparent; cursor: pointer; width: 100%; text-align: left;
     font-size: 13px; color: var(--text); transition: all 0.15s ease;
   }
@@ -401,7 +366,7 @@
 
     <!-- Vista: Recursos (usuarios aprobados) -->
     <div class="main-content hidden" id="resourcesView">
-      <input type="text" id="buscarRecurso" placeholder="🔍 Buscar por título o descripción..." style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:#10182a; color:var(--text); font-size:14px; margin-bottom:14px;">
+      <input type="text" id="buscarRecurso" placeholder="🔍 Buscar por título o descripción..." style="width:100%; padding:12px 14px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
       <div class="filters">
         <select id="filtroCategoria">
           <option value="">Todas las categorías</option>
