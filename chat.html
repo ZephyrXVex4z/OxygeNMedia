@@ -6,6 +6,7 @@
 <title>Chat — OxygeNMedia</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b8def">
+<script src="tema-inline.js"></script>
 <style>
   :root {
     --bg: #0f1420;
@@ -19,11 +20,17 @@
     --success: #4caf7d;
     --bubble-me: #5b8def;
     --bubble-other: #232d45;
+    --radius: 14px;
+    --card-shadow: none;
+    --input-bg: #10182a;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-weight-heading: 700;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-body);
     background: var(--bg);
     color: var(--text);
     height: 100vh;
@@ -39,12 +46,14 @@
     border-bottom: 1px solid var(--border);
   }
   header h1 { font-size: 17px; margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: var(--font-weight-heading); }
   button {
+    font-family: var(--font-body);
     background: var(--accent);
     color: white;
     border: none;
     padding: 9px 14px;
-    border-radius: 8px;
+    border-radius: var(--radius);
     font-size: 13px;
     cursor: pointer;
     font-weight: 600;
@@ -120,7 +129,7 @@
   .msg-bubble {
     max-width: 65%;
     padding: 9px 13px;
-    border-radius: 14px;
+    border-radius: var(--radius);
     font-size: 14px;
     line-height: 1.4;
   }
@@ -145,7 +154,7 @@
   .msg-menu-btn:hover { opacity: 1; }
   .msg-menu {
     position: absolute; top: 100%; right: 0; margin-top: 4px;
-    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
     display: flex; flex-direction: column; z-index: 20; overflow: hidden;
     box-shadow: 0 6px 20px rgba(0,0,0,0.4); min-width: 110px;
   }
@@ -153,7 +162,7 @@
     background: none; border: none; color: var(--text); padding: 9px 14px;
     font-size: 13px; text-align: left; cursor: pointer; border-radius: 0;
   }
-  .msg-menu button:hover { background: #10182a; }
+  .msg-menu button:hover { background: var(--input-bg); }
   .msg-menu button.danger-text { color: var(--danger); }
   .msg-edit-input {
     width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
@@ -172,7 +181,7 @@
     padding: 11px 14px;
     border-radius: 20px;
     border: 1px solid var(--border);
-    background: #10182a;
+    background: var(--input-bg);
     color: var(--text);
     font-size: 16px;
   }
@@ -192,14 +201,14 @@
     display: flex; align-items: center; justify-content: center; z-index: 50;
   }
   .modal-box {
-    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 24px; max-width: 420px; width: 90%; max-height: 80vh; overflow-y: auto;
   }
   .modal-box h3 { margin-top: 0; }
-  .modal-box input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: #10182a; color: var(--text); font-size: 14px; margin-bottom: 10px; }
+  .modal-box input { width: 100%; padding: 10px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; margin-bottom: 10px; }
   .search-result {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; background: #10182a;
+    padding: 8px 10px; border-radius: var(--radius); margin-bottom: 6px; background: var(--input-bg);
     font-size: 13px;
   }
   .search-result button { padding: 5px 10px; font-size: 12px; }
