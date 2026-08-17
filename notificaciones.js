@@ -7,14 +7,35 @@ import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot,
   query, where, orderBy, serverTimestamp, limit
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+import { enviarPush } from "./push.js";
 
 // Crea una notificación para otro usuario (o para uno mismo, en casos como "recurso aprobado")
+// y, además, dispara una notificación push real vía OneSignal para ese mismo usuario.
 export async function crearNotificacion({ paraUid, tipo, deUid = null, deNombre = "", texto, dataExtra = {} }) {
   if (!paraUid) return;
   await addDoc(collection(db, "notificaciones"), {
     paraUid, tipo, deUid, deNombre, texto,
     dataExtra, leida: false, fecha: serverTimestamp()
   });
+
+  // El push se envía "en segundo plano": si falla (ej. el usuario nunca activó
+  // notificaciones), no debe romper la acción principal que la originó.
+  enviarPush(paraUid, "OxygeNMedia", texto, urlSegunTipo(tipo)).catch(() => {});
+}
+
+function urlSegunTipo(tipo) {
+  const base = location.origin + location.pathname.replace(/[^/]+$/, "");
+  const mapa = {
+    solicitud_amistad: "solicitudes.html",
+    amistad_aceptada: "amigos.html",
+    like_publicacion: "muro.html",
+    comentario_publicacion: "muro.html",
+    mencion_publicacion: "muro.html",
+    transferencia_recibida: "billetera.html",
+    credito_recibido: "billetera.html",
+    credito_removido: "billetera.html"
+  };
+  return base + (mapa[tipo] || "index.html");
 }
 
 // Escucha en tiempo real las notificaciones del usuario actual.
