@@ -76,6 +76,14 @@
     padding: 8px 12px; font-size: 12px; margin-bottom: 8px;
   }
 
+  .recurso-resultado {
+    padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border);
+    margin-bottom: 8px; cursor: pointer; font-size: 13px; transition: border-color 0.15s ease;
+  }
+  .recurso-resultado:hover { border-color: var(--accent); }
+  .recurso-resultado .titulo { font-weight: 600; margin-bottom: 2px; }
+  .recurso-resultado .meta { font-size: 11px; color: var(--text-dim); }
+
   .post {
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
     box-shadow: var(--card-shadow); padding: 16px; margin-bottom: 14px;
@@ -136,6 +144,7 @@
         <textarea id="inputTexto" placeholder="¿Qué está pasando?"></textarea>
         <div class="composer-extra hidden" id="extraImagen">
           <input type="text" id="inputImagenURL" placeholder="https://i.imgur.com/ejemplo.jpg">
+          <img id="previewImagen" class="hidden" style="width:100%; max-height:200px; object-fit:cover; border-radius:var(--radius); margin-bottom:8px;">
         </div>
         <div id="citaPreview"></div>
         <div class="composer-actions">
@@ -154,8 +163,19 @@
 
       <div id="listaFeed">Cargando...</div>
       <div class="empty hidden" id="emptyFeed">No hay publicaciones todavía. ¡Sé el primero!</div>
+      <button class="secondary hidden" id="btnCargarMas" style="width:100%; margin-top:6px;">Cargar más</button>
 
     </div>
+  </div>
+</div>
+
+<!-- Modal: buscar recurso para citar -->
+<div class="modal-overlay hidden" id="modalCitarRecurso" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:60; padding:16px;">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; max-width:440px; width:100%; max-height:75vh; overflow-y:auto;">
+    <h3 style="margin-top:0;">Citar un recurso</h3>
+    <input type="text" id="buscarRecursoCitar" placeholder="Buscar por título..." style="width:100%; padding:10px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:12px; font-family:var(--font-body);">
+    <div id="resultadosCitarRecurso"></div>
+    <button class="secondary" id="btnCerrarModalCitar" style="width:100%; margin-top:12px;">Cancelar</button>
   </div>
 </div>
 
