@@ -3,37 +3,127 @@
 
 import { db } from "./firebase-config.js";
 import {
-  collection, doc, addDoc, deleteDoc, getDoc, getDocs, setDoc,
-  query, where, orderBy, limit, serverTimestamp, runTransaction
+  collection, doc, addDoc, deleteDoc, getDoc, getDocs, setDoc, updateDoc,
+  query, where, orderBy, limit, startAfter, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 import { crearNotificacion } from "./notificaciones.js";
 
+// Extrae hashtags (#tema) y menciones (@usuario) de un texto, en minúsculas y sin símbolo
+function extraerHashtags(texto) {
+  const matches = texto.match(/#[\wáéíóúñ]+/gi) || [];
+  return [...new Set(matches.map(h => h.slice(1).toLowerCase()))];
+}
+function extraerMenciones(texto) {
+  const matches = texto.match(/@[\w.]+/gi) || [];
+  return [...new Set(matches.map(m => m.slice(1).toLowerCase()))];
+}
+
 // Crea una publicación nueva
-export async function crearPublicacion({ autorId, autorNombre, autorFotoURL, texto, imagenURL, recursoCitado }) {
-  await addDoc(collection(db, "publicaciones"), {
+export async function crearPublicacion({ autorId, autorNombre, autorFotoURL, texto, imagenURL, recursoCitado, repostDe = null }) {
+  const hashtags = extraerHashtags(texto || "");
+  const usernamesMencionados = extraerMenciones(texto || "");
+
+  const ref = await addDoc(collection(db, "publicaciones"), {
     autorId,
     autorNombre,
     autorFotoURL: autorFotoURL || "",
     texto: texto || "",
     imagenURL: imagenURL || "",
     recursoCitado: recursoCitado || null,
+    repostDe: repostDe || null, // { pubId, autorNombre, texto, imagenURL } — snapshot del post original
+    hashtags,
     likesCount: 0,
     comentariosCount: 0,
     fecha: serverTimestamp()
   });
-}
 
-// Trae publicaciones para el feed. Si se pasa uidsPermitidos (lista de UIDs de amigos + uno mismo),
-// filtra solo esos autores — se usa para el modo "solo amigos". Sin esa lista, trae todo el feed general.
-export async function obtenerFeed({ cantidad = 30, soloDeUids = null } = {}) {
-  const snap = await getDocs(query(collection(db, "publicaciones"), orderBy("fecha", "desc"), limit(cantidad * 2)));
-  let publicaciones = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-  if (soloDeUids) {
-    publicaciones = publicaciones.filter(p => soloDeUids.includes(p.autorId));
+  // Resuelve menciones @username -> notificación a esa persona (si el username existe)
+  if (usernamesMencionados.length > 0) {
+    await notificarMenciones(usernamesMencionados, autorId, autorNombre, ref.id);
   }
 
-  return publicaciones.slice(0, cantidad);
+  return ref.id;
+}
+
+async function notificarMenciones(usernames, autorId, autorNombre, pubId) {
+  for (const username of usernames) {
+    try {
+      const snap = await getDocs(query(collection(db, "usuarios"), where("username", "==", username), limit(1)));
+      if (snap.empty) continue;
+      const uidMencionado = snap.docs[0].id;
+      if (uidMencionado === autorId) continue; // no te notificas a ti mismo
+      await crearNotificacion({
+        paraUid: uidMencionado,
+        tipo: "mencion_publicacion",
+        deUid: autorId,
+        deNombre: autorNombre,
+        texto: `${autorNombre} te mencionó en una publicación`,
+        dataExtra: { pubId }
+      });
+    } catch (e) { /* si falla una mención no debe tumbar la publicación entera */ }
+  }
+}
+
+// Comparte (reposta) una publicación existente a tu propio muro, con comentario opcional
+export async function repostearPublicacion(pubOriginal, autorId, autorNombre, autorFotoURL, comentarioExtra) {
+  return crearPublicacion({
+    autorId, autorNombre, autorFotoURL,
+    texto: comentarioExtra || "",
+    imagenURL: "",
+    recursoCitado: null,
+    repostDe: {
+      pubId: pubOriginal.id,
+      autorNombre: pubOriginal.autorNombre,
+      texto: pubOriginal.texto || "",
+      imagenURL: pubOriginal.imagenURL || ""
+    }
+  });
+}
+
+// Edita el texto/imagen/cita de una publicación existente (el autor la sigue viendo como suya)
+export async function editarPublicacion(pubId, { texto, imagenURL, recursoCitado }) {
+  await updateDoc(doc(db, "publicaciones", pubId), {
+    texto: texto || "",
+    imagenURL: imagenURL || "",
+    recursoCitado: recursoCitado || null,
+    hashtags: extraerHashtags(texto || "")
+  });
+}
+
+// Trae publicaciones para el feed, con soporte de paginación por cursor.
+// Si se pasa uidsPermitidos (lista de UIDs de amigos + uno mismo), filtra solo esos autores.
+// cursorUltimoDoc: el snapshot del último documento de la página anterior (para "cargar más").
+// Devuelve { publicaciones, ultimoDoc, hayMas } — ultimoDoc se pasa de vuelta para pedir la siguiente página.
+export async function obtenerFeed({ cantidad = 15, soloDeUids = null, cursorUltimoDoc = null, hashtag = null } = {}) {
+  // Cuando se filtra por amigos o hashtag, pedimos de más porque luego filtramos en el cliente
+  const filtrando = !!(soloDeUids || hashtag);
+  const limiteQuery = filtrando ? cantidad * 3 : cantidad + 1;
+
+  let q = query(collection(db, "publicaciones"), orderBy("fecha", "desc"), limit(limiteQuery));
+  if (cursorUltimoDoc) {
+    q = query(collection(db, "publicaciones"), orderBy("fecha", "desc"), startAfter(cursorUltimoDoc), limit(limiteQuery));
+  }
+
+  const snap = await getDocs(q);
+  let docs = snap.docs;
+
+  if (soloDeUids) {
+    docs = docs.filter(d => soloDeUids.includes(d.data().autorId));
+  }
+  if (hashtag) {
+    const tagLower = hashtag.toLowerCase();
+    docs = docs.filter(d => (d.data().hashtags || []).includes(tagLower));
+  }
+
+  const hayMas = snap.docs.length === limiteQuery;
+  const paginaDocs = docs.slice(0, cantidad);
+  const ultimoDoc = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null;
+
+  return {
+    publicaciones: paginaDocs.map(d => ({ id: d.id, ...d.data() })),
+    ultimoDoc,
+    hayMas: hayMas || docs.length > cantidad
+  };
 }
 
 export async function borrarPublicacion(pubId) {
@@ -46,6 +136,18 @@ export async function borrarPublicacion(pubId) {
 export async function yaDioLike(pubId, uid) {
   const snap = await getDoc(doc(db, "publicaciones", pubId, "likes", uid));
   return snap.exists();
+}
+
+// Trae la lista de nombres de quienes dieron like (para mostrar "A quién le gustó")
+export async function listarQuienesDieronLike(pubId) {
+  const snap = await getDocs(collection(db, "publicaciones", pubId, "likes"));
+  const uids = snap.docs.map(d => d.id);
+  const nombres = [];
+  for (const uid of uids) {
+    const uSnap = await getDoc(doc(db, "usuarios", uid));
+    if (uSnap.exists()) nombres.push({ uid, nombre: uSnap.data().nombre });
+  }
+  return nombres;
 }
 
 // Alterna el like: si ya existe lo quita (y resta contador), si no existe lo crea (y suma).
@@ -132,4 +234,3 @@ export async function borrarComentario(pubId, comentarioId) {
     tx.update(refPub, { comentariosCount: Math.max(0, actual - 1) });
   });
 }
-
