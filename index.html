@@ -389,6 +389,10 @@
 <div class="drawer" id="drawer">
   <div class="drawer-profile" id="drawerProfile"></div>
   <div class="drawer-links" id="drawerLinks"></div>
+  <div class="drawer-section-title">Notificaciones</div>
+  <div style="padding: 0 14px 14px;">
+    <button class="secondary" id="btnActivarPush" style="width:100%;">🔔 Activar notificaciones push</button>
+  </div>
   <div class="drawer-section-title">Apariencia</div>
   <div id="temaSelector" style="padding: 0 14px 14px; display: flex; flex-direction: column; gap: 6px;"></div>
   <div class="drawer-footer">
@@ -402,6 +406,7 @@ import { cargarRecursos } from "./app.js";
 import { escucharNotificaciones, marcarNotificacionLeida, marcarTodasLeidas, borrarNotificacion } from "./notificaciones.js";
 import { aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
 import { TEMAS, aplicarTema, obtenerTemaGuardado } from "./temas.js";
+import { inicializarPush, pedirPermisoYVincular, tienePermisoPush } from "./push.js";
 
 let modoRegistro = false;
 let perfilGlobal = null;
@@ -596,6 +601,33 @@ function renderSelectorTemas() {
 
 document.getElementById("btnLogoutDrawer").addEventListener("click", cerrarSesion);
 
+// ============ NOTIFICACIONES PUSH (OneSignal) ============
+
+const btnActivarPush = document.getElementById("btnActivarPush");
+
+btnActivarPush.addEventListener("click", async () => {
+  if (!uidGlobal) return;
+  btnActivarPush.textContent = "Activando...";
+  btnActivarPush.disabled = true;
+
+  const permitido = await pedirPermisoYVincular(uidGlobal);
+
+  if (permitido) {
+    btnActivarPush.textContent = "🔔 Notificaciones activadas ✓";
+  } else {
+    btnActivarPush.textContent = "🔔 Activar notificaciones push";
+    alert("No se pudo activar. Es posible que hayas bloqueado los permisos de notificación para este sitio en la configuración de tu navegador.");
+  }
+  btnActivarPush.disabled = false;
+});
+
+async function actualizarEstadoBotonPush() {
+  try {
+    const yaActivo = await tienePermisoPush();
+    if (yaActivo) btnActivarPush.textContent = "🔔 Notificaciones activadas ✓";
+  } catch {}
+}
+
 // ============ NOTIFICACIONES (campanita) ============
 
 const bellWrapper = document.getElementById("bellWrapper");
@@ -724,6 +756,9 @@ observarSesion((user, perfil) => {
   uidGlobal = user.uid;
   btnAbrirDrawer.classList.remove("hidden");
   construirDrawer(perfil);
+
+  inicializarPush();
+  actualizarEstadoBotonPush();
 
   bellWrapper.classList.remove("hidden");
   if (!unsubscribeNotifs) {
