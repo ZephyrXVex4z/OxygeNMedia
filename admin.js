@@ -5,6 +5,7 @@ import { db } from "./firebase-config.js";
 import { observarSesion, cerrarSesion } from "./auth.js";
 import { registrarLog, obtenerLogsRecientes } from "./logs.js";
 import { adminAjustarSaldo, crearTarjetaRegalo, listarTarjetasRegalo } from "./wallet.js";
+import { publicarActualizacion, editarActualizacion, borrarActualizacion, listarActualizaciones } from "./actualizaciones.js";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, setDoc,
   query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove
@@ -33,6 +34,7 @@ observarSesion((user, perfil) => {
   cargarJuegosPendientesAdmin();
   cargarLogs();
   cargarTarjetas();
+  cargarNovedadesAdmin();
 });
 
 // --- Tabs ---
@@ -47,6 +49,7 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("tabJuegos").classList.add("hidden");
     document.getElementById("tabRegistro").classList.add("hidden");
     document.getElementById("tabTarjetas").classList.add("hidden");
+    document.getElementById("tabNovedades").classList.add("hidden");
     document.getElementById("tab" + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).classList.remove("hidden");
   });
 });
@@ -767,5 +770,125 @@ async function cargarTarjetas() {
       <td style="font-size:12px; color:var(--text-dim);">${t.canjeadaPorNombre || "—"}</td>
     `;
     tbody.appendChild(tr);
+  });
+}
+
+// ============ NOVEDADES / REGISTRO DE ACTUALIZACIONES ============
+
+const ETIQUETAS_TIPO_NOVEDAD = {
+  nueva_funcion: "✨ Nueva función",
+  mejora: "⚙️ Mejora",
+  arreglo: "🛠️ Arreglo"
+};
+
+const novedadEditId = document.getElementById("novedadEditId");
+const novedadTipo = document.getElementById("novedadTipo");
+const novedadTitulo = document.getElementById("novedadTitulo");
+const novedadDescripcion = document.getElementById("novedadDescripcion");
+const novedadVersion = document.getElementById("novedadVersion");
+const novedadFormTitulo = document.getElementById("novedadFormTitulo");
+const btnPublicarNovedad = document.getElementById("btnPublicarNovedad");
+const btnCancelarEdicionNovedad = document.getElementById("btnCancelarEdicionNovedad");
+const msgNovedad = document.getElementById("msgNovedad");
+
+function limpiarFormNovedad() {
+  novedadEditId.value = "";
+  novedadTipo.value = "mejora";
+  novedadTitulo.value = "";
+  novedadDescripcion.value = "";
+  novedadVersion.value = "";
+  novedadFormTitulo.textContent = "Publicar novedad";
+  btnPublicarNovedad.textContent = "Publicar";
+  btnCancelarEdicionNovedad.classList.add("hidden");
+}
+
+btnCancelarEdicionNovedad.addEventListener("click", limpiarFormNovedad);
+
+btnPublicarNovedad.addEventListener("click", async () => {
+  const titulo = novedadTitulo.value.trim();
+  if (!titulo) {
+    mostrarMsgNovedad("El título es obligatorio.", "error");
+    return;
+  }
+
+  btnPublicarNovedad.disabled = true;
+  try {
+    if (novedadEditId.value) {
+      await editarActualizacion(novedadEditId.value, {
+        titulo,
+        descripcion: novedadDescripcion.value.trim(),
+        version: novedadVersion.value.trim(),
+        tipo: novedadTipo.value
+      });
+      mostrarMsgNovedad("Novedad actualizada.", "ok");
+    } else {
+      await publicarActualizacion({
+        titulo,
+        descripcion: novedadDescripcion.value.trim(),
+        version: novedadVersion.value.trim(),
+        tipo: novedadTipo.value,
+        adminUid: adminActual.uid,
+        adminNombre: adminActual.nombre
+      });
+      mostrarMsgNovedad("Novedad publicada.", "ok");
+    }
+    limpiarFormNovedad();
+    cargarNovedadesAdmin();
+  } catch (err) {
+    mostrarMsgNovedad("Error: " + err.message, "error");
+  }
+  btnPublicarNovedad.disabled = false;
+});
+
+function mostrarMsgNovedad(texto, tipo) {
+  msgNovedad.textContent = texto;
+  msgNovedad.className = "msg " + tipo;
+  msgNovedad.style.display = "block";
+  setTimeout(() => { msgNovedad.style.display = "none"; }, 3000);
+}
+
+async function cargarNovedadesAdmin() {
+  const lista = await listarActualizaciones();
+  const tbody = document.getElementById("tablaNovedades");
+  const empty = document.getElementById("emptyNovedades");
+  tbody.innerHTML = "";
+
+  if (lista.length === 0) {
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  lista.forEach(a => {
+    const fecha = a.fecha ? a.fecha.toDate().toLocaleDateString("es-MX", { day: "numeric", month: "short" }) : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td style="font-size:12px; color:var(--text-dim);">${fecha}</td>
+      <td>${ETIQUETAS_TIPO_NOVEDAD[a.tipo] || a.tipo}</td>
+      <td>${a.titulo}${a.version ? ` <span style="color:var(--text-dim); font-size:11px;">(${a.version})</span>` : ""}</td>
+      <td class="row-actions">
+        <button class="secondary" data-editar-novedad="${a.id}">Editar</button>
+        <button class="danger" data-borrar-novedad="${a.id}">Borrar</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    tr.querySelector("[data-editar-novedad]").addEventListener("click", () => {
+      novedadEditId.value = a.id;
+      novedadTipo.value = a.tipo || "mejora";
+      novedadTitulo.value = a.titulo || "";
+      novedadDescripcion.value = a.descripcion || "";
+      novedadVersion.value = a.version || "";
+      novedadFormTitulo.textContent = "Editando: " + a.titulo;
+      btnPublicarNovedad.textContent = "Guardar cambios";
+      btnCancelarEdicionNovedad.classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    tr.querySelector("[data-borrar-novedad]").addEventListener("click", async () => {
+      if (!confirm("¿Borrar esta novedad?")) return;
+      await borrarActualizacion(a.id);
+      cargarNovedadesAdmin();
+    });
   });
 }
