@@ -4,7 +4,7 @@
 
 import { db } from "./firebase-config.js";
 import {
-  doc, getDoc, updateDoc, addDoc, collection, getDocs, query, where,
+  doc, getDoc, setDoc, updateDoc, addDoc, collection, getDocs, query, where,
   orderBy, limit, serverTimestamp, runTransaction, arrayUnion
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 import { crearNotificacion } from "./notificaciones.js";
@@ -147,5 +147,90 @@ export async function obtenerHistorial(uid, cantidad = 50) {
   recibidasSnap.forEach(d => mapa.set(d.id, { id: d.id, ...d.data() }));
 
   return [...mapa.values()].sort((a, b) => (b.fecha?.seconds || 0) - (a.fecha?.seconds || 0));
-                      }
-  
+}
+
+// ============ TARJETAS DE REGALO ============
+
+// Genera un código legible tipo OXY-7F3K-9QRT (sin caracteres ambiguos como 0/O, 1/I)
+function generarCodigoTarjeta() {
+  const alfabeto = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+  const grupo = () => Array.from({ length: 4 }, () => alfabeto[Math.floor(Math.random() * alfabeto.length)]).join("");
+  return `OXY-${grupo()}-${grupo()}`;
+}
+
+// El admin crea una tarjeta nueva. Reintenta con otro código si por rarísima
+// coincidencia el generado ya existiera (el código es el ID del documento).
+export async function crearTarjetaRegalo(adminUid, adminNombre, monto) {
+  if (monto <= 0) throw new Error("El monto debe ser mayor a 0.");
+
+  for (let intento = 0; intento < 5; intento++) {
+    const codigo = generarCodigoTarjeta();
+    const ref = doc(db, "tarjetasRegalo", codigo);
+    const yaExiste = await getDoc(ref);
+    if (yaExiste.exists()) continue; // colisión rarísima, reintenta con otro código
+
+    await setDoc(ref, {
+      monto,
+      creadoPor: adminUid,
+      creadoPorNombre: adminNombre,
+      fecha: serverTimestamp(),
+      canjeada: false,
+      canjeadaPor: null,
+      canjeadaPorNombre: "",
+      fechaCanje: null
+    });
+
+    return codigo;
+  }
+  throw new Error("No se pudo generar un código único, intenta de nuevo.");
+}
+
+// Canjea una tarjeta: valida que exista y no esté usada, marca como canjeada,
+// y suma el saldo correspondiente al usuario. Todo en una transacción atómica.
+export async function canjearTarjetaRegalo(codigo, uid, nombre) {
+  const codigoNormalizado = codigo.trim().toUpperCase();
+  const refTarjeta = doc(db, "tarjetasRegalo", codigoNormalizado);
+  const refUsuario = doc(db, "usuarios", uid);
+
+  let montoCanjeado = 0;
+
+  await runTransaction(db, async (tx) => {
+    const snapTarjeta = await tx.get(refTarjeta);
+    if (!snapTarjeta.exists()) throw new Error("Ese código no existe. Revisa que esté bien escrito.");
+
+    const tarjeta = snapTarjeta.data();
+    if (tarjeta.canjeada) throw new Error("Esta tarjeta ya fue canjeada anteriormente.");
+
+    const snapUsuario = await tx.get(refUsuario);
+    if (!snapUsuario.exists()) throw new Error("Usuario no encontrado.");
+    const saldoActual = snapUsuario.data().saldo || 0;
+
+    montoCanjeado = tarjeta.monto;
+
+    tx.update(refTarjeta, {
+      canjeada: true,
+      canjeadaPor: uid,
+      canjeadaPorNombre: nombre,
+      fechaCanje: serverTimestamp()
+    });
+    tx.update(refUsuario, { saldo: saldoActual + montoCanjeado });
+  });
+
+  await addDoc(collection(db, "transacciones"), {
+    tipo: "canje_tarjeta",
+    deUid: null, deNombre: "",
+    paraUid: uid, paraNombre: nombre,
+    monto: montoCanjeado,
+    motivo: "Canje de tarjeta de regalo " + codigoNormalizado,
+    adminUid: null,
+    dataExtra: { codigo: codigoNormalizado },
+    fecha: serverTimestamp()
+  });
+
+  return montoCanjeado;
+}
+// Lista todas las tarjetas creadas (para el panel de monitoreo del admin)
+export async function listarTarjetasRegalo() {
+  const snap = await getDocs(query(collection(db, "tarjetasRegalo"), orderBy("fecha", "desc")));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
