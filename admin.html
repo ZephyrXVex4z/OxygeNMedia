@@ -145,6 +145,7 @@
     <div class="tab" data-tab="registro">Registro</div>
     <div class="tab" data-tab="tarjetas">Tarjetas de regalo</div>
     <div class="tab" data-tab="novedades">Novedades</div>
+    <div class="tab" data-tab="mantenimiento">Mantenimiento</div>
   </div>
 
   <div class="content">
@@ -330,6 +331,31 @@
           <tbody id="tablaNovedades"></tbody>
         </table>
         <div class="empty hidden" id="emptyNovedades">Aún no has publicado ninguna novedad.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Modo mantenimiento -->
+    <div id="tabMantenimiento" class="hidden">
+      <div class="card">
+        <div id="estadoMantenimientoBox" style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:var(--radius); margin-bottom:18px;">
+          <span id="estadoMantenimientoIcono" style="font-size:20px;">✅</span>
+          <span id="estadoMantenimientoTexto" style="font-weight:600;">El sitio está funcionando normalmente</span>
+        </div>
+
+        <h3 style="margin-top:0;">Activar modo mantenimiento</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">Mientras esté activo, solo los administradores podrán usar el sitio. Los demás verán una pantalla informativa.</p>
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Motivo</label>
+        <input type="text" id="mantMotivo" placeholder="Ej. Arreglar bugs" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Horario (opcional)</label>
+        <input type="text" id="mantHorario" placeholder="Ej. De 3:00 PM a 5:00 PM" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
+
+        <div style="display:flex; gap:8px;">
+          <button class="danger" id="btnActivarMantenimiento">Activar mantenimiento</button>
+          <button class="success" id="btnDesactivarMantenimiento">Desactivar mantenimiento</button>
+        </div>
+        <div class="msg" id="msgMantenimiento" style="display:none; margin-top:10px;"></div>
       </div>
     </div>
 
