@@ -6,6 +6,7 @@ import { observarSesion, cerrarSesion } from "./auth.js";
 import { registrarLog, obtenerLogsRecientes } from "./logs.js";
 import { adminAjustarSaldo, crearTarjetaRegalo, listarTarjetasRegalo } from "./wallet.js";
 import { publicarActualizacion, editarActualizacion, borrarActualizacion, listarActualizaciones } from "./actualizaciones.js";
+import { activarMantenimiento, desactivarMantenimiento, obtenerEstadoMantenimiento } from "./mantenimiento.js";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, setDoc,
   query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove
@@ -35,6 +36,7 @@ observarSesion((user, perfil) => {
   cargarLogs();
   cargarTarjetas();
   cargarNovedadesAdmin();
+  cargarEstadoMantenimiento();
 });
 
 // --- Tabs ---
@@ -50,6 +52,7 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("tabRegistro").classList.add("hidden");
     document.getElementById("tabTarjetas").classList.add("hidden");
     document.getElementById("tabNovedades").classList.add("hidden");
+    document.getElementById("tabMantenimiento").classList.add("hidden");
     document.getElementById("tab" + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).classList.remove("hidden");
   });
 });
@@ -620,7 +623,9 @@ const ETIQUETAS_TIPO_LOG = {
   borrado_recurso: "🗑️ Recurso borrado",
   admin_dar: "💰 Saldo otorgado",
   admin_quitar: "💸 Saldo removido",
-  tarjeta_creada: "🎁 Tarjeta de regalo creada"
+  tarjeta_creada: "🎁 Tarjeta de regalo creada",
+  mantenimiento_activado: "🛠️ Mantenimiento activado",
+  mantenimiento_desactivado: "✅ Mantenimiento desactivado"
 };
 
 async function cargarLogs() {
@@ -891,4 +896,101 @@ async function cargarNovedadesAdmin() {
       cargarNovedadesAdmin();
     });
   });
+}
+
+// ============ MODO MANTENIMIENTO ============
+
+const mantMotivo = document.getElementById("mantMotivo");
+const mantHorario = document.getElementById("mantHorario");
+const btnActivarMantenimiento = document.getElementById("btnActivarMantenimiento");
+const btnDesactivarMantenimiento = document.getElementById("btnDesactivarMantenimiento");
+const msgMantenimiento = document.getElementById("msgMantenimiento");
+const estadoMantenimientoBox = document.getElementById("estadoMantenimientoBox");
+const estadoMantenimientoIcono = document.getElementById("estadoMantenimientoIcono");
+const estadoMantenimientoTexto = document.getElementById("estadoMantenimientoTexto");
+
+async function cargarEstadoMantenimiento() {
+  const estado = await obtenerEstadoMantenimiento();
+  renderEstadoMantenimiento(estado);
+}
+
+function renderEstadoMantenimiento(estado) {
+  if (estado.activo) {
+    estadoMantenimientoBox.style.background = "rgba(227,93,93,0.12)";
+    estadoMantenimientoBox.style.border = "1px solid var(--danger)";
+    estadoMantenimientoIcono.textContent = "🛠️";
+    let detalle = estado.motivo ? `Motivo: ${estado.motivo}` : "";
+    if (estado.horario) detalle += (detalle ? " — " : "") + estado.horario;
+    if (estado.activadoPorNombre) detalle += (detalle ? " — " : "") + "Activado por " + estado.activadoPorNombre;
+    estadoMantenimientoTexto.textContent = "Mantenimiento ACTIVO" + (detalle ? " · " + detalle : "");
+  } else {
+    estadoMantenimientoBox.style.background = "rgba(76,175,125,0.12)";
+    estadoMantenimientoBox.style.border = "1px solid var(--success)";
+    estadoMantenimientoIcono.textContent = "✅";
+    estadoMantenimientoTexto.textContent = "El sitio está funcionando normalmente";
+  }
+}
+
+btnActivarMantenimiento.addEventListener("click", async () => {
+  const motivo = mantMotivo.value.trim();
+  if (!motivo) {
+    mostrarMsgMantenimiento("Escribe un motivo (ej. Arreglar bugs).", "error");
+    return;
+  }
+
+  btnActivarMantenimiento.disabled = true;
+  try {
+    await activarMantenimiento({
+      motivo,
+      horario: mantHorario.value.trim(),
+      adminUid: adminActual.uid,
+      adminNombre: adminActual.nombre
+    });
+
+    await registrarLog({
+      tipo: "mantenimiento_activado",
+      adminUid: adminActual.uid,
+      adminNombre: adminActual.nombre,
+      objetivoUid: null,
+      objetivoNombre: "",
+      detalle: motivo + (mantHorario.value.trim() ? " — " + mantHorario.value.trim() : "")
+    });
+
+    mostrarMsgMantenimiento("Modo mantenimiento activado.", "ok");
+    cargarEstadoMantenimiento();
+  } catch (err) {
+    mostrarMsgMantenimiento("Error: " + err.message, "error");
+  }
+  btnActivarMantenimiento.disabled = false;
+});
+
+btnDesactivarMantenimiento.addEventListener("click", async () => {
+  btnDesactivarMantenimiento.disabled = true;
+  try {
+    await desactivarMantenimiento();
+
+    await registrarLog({
+      tipo: "mantenimiento_desactivado",
+      adminUid: adminActual.uid,
+      adminNombre: adminActual.nombre,
+      objetivoUid: null,
+      objetivoNombre: "",
+      detalle: "Mantenimiento desactivado"
+    });
+
+    mostrarMsgMantenimiento("Modo mantenimiento desactivado.", "ok");
+    mantMotivo.value = "";
+    mantHorario.value = "";
+    cargarEstadoMantenimiento();
+  } catch (err) {
+    mostrarMsgMantenimiento("Error: " + err.message, "error");
+  }
+  btnDesactivarMantenimiento.disabled = false;
+});
+
+function mostrarMsgMantenimiento(texto, tipo) {
+  msgMantenimiento.textContent = texto;
+  msgMantenimiento.className = "msg " + tipo;
+  msgMantenimiento.style.display = "block";
+  setTimeout(() => { msgMantenimiento.style.display = "none"; }, 3500);
 }
