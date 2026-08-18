@@ -4,7 +4,7 @@
 import { db } from "./firebase-config.js";
 import { observarSesion, cerrarSesion } from "./auth.js";
 import { registrarLog, obtenerLogsRecientes } from "./logs.js";
-import { adminAjustarSaldo } from "./wallet.js";
+import { adminAjustarSaldo, crearTarjetaRegalo, listarTarjetasRegalo } from "./wallet.js";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, setDoc,
   query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove
@@ -32,6 +32,7 @@ observarSesion((user, perfil) => {
   cargarRolesPendientes();
   cargarJuegosPendientesAdmin();
   cargarLogs();
+  cargarTarjetas();
 });
 
 // --- Tabs ---
@@ -45,6 +46,7 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("tabRoles").classList.add("hidden");
     document.getElementById("tabJuegos").classList.add("hidden");
     document.getElementById("tabRegistro").classList.add("hidden");
+    document.getElementById("tabTarjetas").classList.add("hidden");
     document.getElementById("tab" + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).classList.remove("hidden");
   });
 });
@@ -614,7 +616,8 @@ const ETIQUETAS_TIPO_LOG = {
   borrado_sugerencia: "🗑️ Sugerencia borrada",
   borrado_recurso: "🗑️ Recurso borrado",
   admin_dar: "💰 Saldo otorgado",
-  admin_quitar: "💸 Saldo removido"
+  admin_quitar: "💸 Saldo removido",
+  tarjeta_creada: "🎁 Tarjeta de regalo creada"
 };
 
 async function cargarLogs() {
@@ -705,3 +708,64 @@ async function procesarAjusteSaldo(signo) {
 
 document.getElementById("btnDarSaldo").addEventListener("click", () => procesarAjusteSaldo(1));
 document.getElementById("btnQuitarSaldo").addEventListener("click", () => procesarAjusteSaldo(-1));
+
+// ============ TARJETAS DE REGALO ============
+
+const montoNuevaTarjeta = document.getElementById("montoNuevaTarjeta");
+const btnCrearTarjeta = document.getElementById("btnCrearTarjeta");
+const codigoGeneradoBox = document.getElementById("codigoGeneradoBox");
+const codigoGeneradoTexto = document.getElementById("codigoGeneradoTexto");
+
+btnCrearTarjeta.addEventListener("click", async () => {
+  const monto = Number(montoNuevaTarjeta.value);
+  if (!monto || monto <= 0) {
+    alert("Escribe un monto válido.");
+    return;
+  }
+
+  btnCrearTarjeta.disabled = true;
+  try {
+    const codigo = await crearTarjetaRegalo(adminActual.uid, adminActual.nombre, monto);
+    codigoGeneradoTexto.textContent = codigo;
+    codigoGeneradoBox.classList.remove("hidden");
+    montoNuevaTarjeta.value = "";
+
+    await registrarLog({
+      tipo: "tarjeta_creada",
+      adminUid: adminActual.uid,
+      adminNombre: adminActual.nombre,
+      objetivoUid: null,
+      objetivoNombre: "",
+      detalle: `Tarjeta ${codigo} por $${monto}`
+    });
+
+    cargarTarjetas();
+  } catch (err) {
+    alert("Error al crear la tarjeta: " + err.message);
+  }
+  btnCrearTarjeta.disabled = false;
+});
+
+async function cargarTarjetas() {
+  const tarjetas = await listarTarjetasRegalo();
+  const tbody = document.getElementById("tablaTarjetas");
+  const empty = document.getElementById("emptyTarjetas");
+  tbody.innerHTML = "";
+
+  if (tarjetas.length === 0) {
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+
+  tarjetas.forEach(t => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td style="font-family:monospace; font-size:12px;">${t.id}</td>
+      <td>$${t.monto}</td>
+      <td><span class="badge ${t.canjeada ? "pago" : "gratis"}" style="${t.canjeada ? "background:rgba(224,169,65,0.15); color:var(--warn);" : ""}">${t.canjeada ? "Canjeada" : "Disponible"}</span></td>
+      <td style="font-size:12px; color:var(--text-dim);">${t.canjeadaPorNombre || "—"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
