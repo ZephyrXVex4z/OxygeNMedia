@@ -298,7 +298,7 @@
   <header>
     <h1>
       <button class="hamburger-btn hidden" id="btnAbrirDrawer">☰</button>
-      💫 OxygeNMedia
+      🌐 OxygeNMedia
     </h1>
     <div style="display:flex; align-items:center; gap:10px;">
       <div class="bell-wrapper hidden" id="bellWrapper">
@@ -333,6 +333,13 @@
         <label>Contraseña</label>
         <input type="password" id="inputPassword" placeholder="••••••••">
 
+        <div id="terminosField" class="hidden" style="display:flex; align-items:flex-start; gap:8px; margin-bottom:14px;">
+          <input type="checkbox" id="checkTerminos" style="width:auto; margin:3px 0 0;">
+          <label for="checkTerminos" style="margin:0; font-size:13px; color:var(--text-dim); cursor:pointer;">
+            Acepto los <a href="terminos.html" target="_blank" style="color:var(--accent);">términos y condiciones</a> de OxygeNMedia
+          </label>
+        </div>
+
         <button id="btnSubmitAuth" style="width:100%">Entrar</button>
 
         <div class="toggle-link" id="forgotPasswordLink">
@@ -347,8 +354,14 @@
         </div>
 
         <div class="toggle-link" style="margin-top:8px;">
-          <a href="https://wa.me/529844681306?text=Hola%2C%20quisiera%20solicitar%20acceso%20a%20Ayuda%20Escolar" target="_blank" style="color:#4caf7d;">
+          <a href="https://wa.me/529844681306?text=Hola%2C%20quisiera%20solicitar%20acceso%20a%20OxygeNMedia" target="_blank" style="color:#4caf7d;">
             📱 Solicitar acceso privado por WhatsApp
+          </a>
+        </div>
+
+        <div class="toggle-link" style="margin-top:8px;">
+          <a href="https://wa.me/529844681306?text=Hola%2C%20quisiera%20comprar%20una%20tarjeta%20de%20regalo%20Ox2" target="_blank" style="color:#e0a941;">
+            🎁 Comprar una tarjeta de regalo Ox2
           </a>
         </div>
       </div>
@@ -426,6 +439,8 @@ const btnPublicarRecurso = document.getElementById("btnPublicarRecurso");
 const authTitle = document.getElementById("authTitle");
 const authError = document.getElementById("authError");
 const nombreField = document.getElementById("nombreField");
+const terminosField = document.getElementById("terminosField");
+const checkTerminos = document.getElementById("checkTerminos");
 const inputNombre = document.getElementById("inputNombre");
 const inputEmail = document.getElementById("inputEmail");
 const inputPassword = document.getElementById("inputPassword");
@@ -451,6 +466,7 @@ toggleLink.addEventListener("click", () => {
   if (modoRegistro) {
     authTitle.textContent = "Solicitar acceso";
     nombreField.classList.remove("hidden");
+    terminosField.classList.remove("hidden");
     btnSubmitAuth.textContent = "Solicitar acceso";
     toggleText.textContent = "¿Ya tienes cuenta?";
     toggleLink.textContent = "Iniciar sesión";
@@ -458,6 +474,7 @@ toggleLink.addEventListener("click", () => {
   } else {
     authTitle.textContent = "Iniciar sesión";
     nombreField.classList.add("hidden");
+    terminosField.classList.add("hidden");
     btnSubmitAuth.textContent = "Entrar";
     toggleText.textContent = "¿No tienes cuenta?";
     toggleLink.textContent = "Solicitar acceso";
@@ -506,6 +523,11 @@ btnSubmitAuth.addEventListener("click", async () => {
       const nombre = inputNombre.value.trim();
       if (!nombre) {
         mostrarError("Escribe tu nombre.");
+        btnSubmitAuth.disabled = false;
+        return;
+      }
+      if (!checkTerminos.checked) {
+        mostrarError("Debes aceptar los términos y condiciones para crear tu cuenta.");
         btnSubmitAuth.disabled = false;
         return;
       }
