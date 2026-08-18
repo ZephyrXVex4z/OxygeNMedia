@@ -1,10 +1,10 @@
 # OxygeNMedia
 
-Red social comunitaria: perfiles con roles personalizables, sistema de amistades, chat privado y grupal en tiempo real, muro de recursos compartidos por la comunidad, juegos subidos por usuarios, créditos digitales internos, y moderación con historial de acciones.
+Red social comunitaria: perfiles con roles personalizables, sistema de amistades, chat privado y grupal en tiempo real, muro social con publicaciones/likes/comentarios/hashtags, recursos compartidos por la comunidad, juegos subidos por usuarios, un sistema de créditos digitales (Ox2) con transferencias y tarjetas de regalo, notificaciones push, temas visuales personalizables, y moderación con historial de acciones.
 
 Construida como una PWA (instalable en el celular) con **HTML/CSS/JS puro** (sin frameworks, sin build step) sobre **Firebase** (Auth + Firestore), hosteada en **GitHub Pages**.
 
-> **Nota sobre el enfoque del proyecto**: OxygeNMedia nació como una plataforma escolar de recursos con acceso controlado, y está evolucionando hacia una red social de propósito general. Esta transición está **en progreso** — el código actual todavía refleja varias decisiones del enfoque anterior (aprobación manual de cuentas, recursos con contenido de pago como pieza central). Ver la sección [De plataforma escolar a red social](#de-plataforma-escolar-a-red-social-transición-en-curso) para el estado real de esa migración.
+> **Nota sobre el enfoque del proyecto**: OxygeNMedia nació como una plataforma escolar de recursos con acceso controlado, y está evolucionando hacia una red social de propósito general. El registro **sigue siendo cerrado** (aprobación manual de cuentas) — ver [la sección de transición](#de-plataforma-escolar-a-red-social-transición-en-curso) para el detalle real de qué falta.
 
 ---
 
@@ -16,12 +16,14 @@ Construida como una PWA (instalable en el celular) con **HTML/CSS/JS puro** (sin
 4. [Estructura de archivos](#estructura-de-archivos)
 5. [Módulos compartidos](#módulos-compartidos-el-corazón-del-código)
 6. [Colecciones de Firestore](#colecciones-de-firestore)
-7. [Cómo funciona la seguridad](#cómo-funciona-la-seguridad)
-8. [El sistema de créditos, en detalle](#el-sistema-de-créditos-en-detalle)
-9. [Convenciones del proyecto](#convenciones-del-proyecto)
-10. [Problemas conocidos y limitaciones](#problemas-conocidos-y-limitaciones)
-11. [Cómo desplegar cambios](#cómo-desplegar-cambios)
-12. [Roadmap](#roadmap)
+7. [Sistema de temas visuales](#sistema-de-temas-visuales)
+8. [Notificaciones push (OneSignal)](#notificaciones-push-onesignal)
+9. [El sistema de créditos Ox2, en detalle](#el-sistema-de-créditos-ox2-en-detalle)
+10. [Cómo funciona la seguridad](#cómo-funciona-la-seguridad)
+11. [Convenciones del proyecto](#convenciones-del-proyecto)
+12. [Problemas conocidos y limitaciones](#problemas-conocidos-y-limitaciones)
+13. [Cómo desplegar cambios](#cómo-desplegar-cambios)
+14. [Roadmap](#roadmap)
 
 ---
 
@@ -32,7 +34,8 @@ Construida como una PWA (instalable en el celular) con **HTML/CSS/JS puro** (sin
 | Frontend | HTML + CSS + JS vanilla, ES modules | Sin build step, cualquiera lo edita directo en GitHub o localmente, sin `npm install` |
 | Hosting | GitHub Pages | Gratis, ya integrado con el repo |
 | Backend | Firebase Auth + Firestore | Gratis en capa Spark, sin necesitar servidor propio |
-| Storage de archivos | **No usamos Firebase Storage** | Activa el plan Blaze (pide tarjeta) incluso dentro de la capa gratuita. En su lugar, las imágenes se referencian por URL externa (Imgur u otro hosting de imágenes) |
+| Storage de archivos | **No usamos Firebase Storage** | Activa el plan Blaze (pide tarjeta) incluso dentro de la capa gratuita. Las imágenes se referencian por URL externa (Imgur u otro hosting) |
+| Notificaciones push | **OneSignal** (servicio externo gratuito) | Firebase Cloud Messaging con push real (sitio cerrado) requiere Cloud Functions → plan Blaze. OneSignal lo logra sin backend propio ni tarjeta |
 | PWA | `manifest.json` + `service-worker.js` | Instalable en el celular sin pasar por Play Store / App Store |
 
 **Importante**: no hay Cloud Functions ni backend propio corriendo código de servidor. Toda la lógica vive en el navegador del usuario, y la seguridad real la dan las **Firestore Security Rules** — no confíes nunca en validaciones que solo estén en el JS del cliente, ese código lo puede leer y manipular cualquiera.
@@ -41,96 +44,107 @@ Construida como una PWA (instalable en el celular) con **HTML/CSS/JS puro** (sin
 
 ## De plataforma escolar a red social (transición en curso)
 
-El proyecto está migrando de enfoque. Esta sección existe para que cualquiera que llegue nuevo sepa qué es visión y qué es realidad **hoy**.
-
 ### Hacia dónde va
 - Registro **abierto**, sin depender de que un admin apruebe manualmente cada cuenta nueva
-- Los "recursos" (contenido con precio, aprobación de contenido) dejan de ser el centro de la experiencia y pasan a ser una función secundaria/opcional
-- El perfil, el muro social, las amistades y el chat pasan a ser el corazón del producto
+- Los "recursos" dejan de ser el centro de la experiencia y pasan a ser una función secundaria
+- El perfil, el muro, las amistades y el chat son el corazón del producto
 
 ### Cómo está el código realmente ahora mismo
-- **El registro sigue siendo cerrado**: toda cuenta nueva se crea con `aprobado: false` y necesita que un admin la apruebe manualmente desde el panel (`admin.html` → pestaña "Usuarios pendientes"). Esto **no se ha cambiado todavía**.
-- **Los recursos siguen siendo una pieza central del código**: `recursos/{id}` + su subcolección protegida, el sistema de compra con créditos, y varias páginas (`publicar-recurso.html`, `mis-recursos.html`) están construidas alrededor de esto.
-- Las piezas de red social (`perfil.html`, `amigos.html`, `ver-perfil.html`, `chat.html`, `billetera.html`) ya existen y funcionan de forma independiente a los recursos — no dependen unas de otras, así que sí se puede usar el sitio como red social hoy, con recursos simplemente como una sección más dentro del menú.
+- **El registro sigue siendo cerrado**: toda cuenta nueva se crea con `aprobado: false` y necesita aprobación manual desde `admin.html` → "Usuarios pendientes". No se ha cambiado.
+- **El Muro ya existe y funciona** (`muro.html`) — es la pieza social más importante construida hasta ahora: publicaciones con texto/imagen/cita de recursos, likes, comentarios, hashtags clickeables, repost, menciones @usuario, borrador automático, y feed general o solo-amigos.
+- `index.html` (la página de entrada) sigue mostrando la lista de recursos como vista principal después de iniciar sesión — con el Muro ya construido, este sigue siendo el cambio pendiente más visible de la transición.
+- Los "recursos" siguen siendo una pieza central del código (contenido protegido, compra con créditos, publicación por usuarios).
 
 ### Qué falta tocar para que el código refleje la nueva visión
-Ninguno de estos cambios está hecho todavía — quedan documentados aquí para quien continúe el trabajo:
-
-1. **Abrir el registro**: decidir si se elimina la aprobación manual por completo, o se deja como opción configurable. Afecta la función `registrarUsuario` en `auth.js` y varias reglas de Firestore que hoy verifican `aprobado == true` como condición de acceso a casi todo (chat, perfiles, amistades, sugerencias, juegos) — si se abre el registro, hay que decidir si esas reglas pasan a verificar solo "tiene sesión iniciada" en vez de "está aprobado".
-2. **Bajarle prioridad a "recursos"** en la navegación: hoy `index.html` (la página de entrada) muestra la lista de recursos como vista principal después de iniciar sesión. Si el nuevo centro es el perfil/muro social, esa pantalla de entrada debería cambiar.
-3. Posiblemente agregar un **muro/feed** de publicaciones tipo red social (hoy no existe — lo que más se le parece es el foro de `sugerencias.html`, que no fue diseñado para eso).
+1. **Abrir el registro**: tocar `registrarUsuario` en `auth.js` y las reglas de Firestore que verifican `aprobado == true` en casi todas las colecciones.
+2. **Cambiar la pantalla de entrada**: que `index.html` muestre el Muro o el perfil en vez de la lista de recursos al iniciar sesión.
+3. Seguir integrando recursos como una sección más del menú, no como la razón de ser del sitio.
 
 ---
 
 ## Cómo correr el proyecto
 
-No hay entorno de desarrollo local tradicional. El flujo de trabajo real de este proyecto es:
+No hay entorno de desarrollo local tradicional:
 
 1. Editar archivos directo (en GitHub web, o localmente y luego subir)
-2. Subir los `.html`/`.js` modificados a la raíz del repo de GitHub (GitHub Pages sirve desde `/ (root)`, no desde `/public`)
-3. Si se tocaron las reglas de Firestore (`firestore.rules`), copiar y pegar su contenido en **Firebase Console → Firestore Database → Reglas → Publicar** (no hay CLI/terminal disponible en el flujo de trabajo actual, así que esto se hace manualmente cada vez)
-4. Probar en `https://<usuario>.github.io/<repo>/`
+2. Subir los `.html`/`.js` modificados a la raíz del repo (GitHub Pages sirve desde `/ (root)`)
+3. Si se tocaron `firestore.rules`: copiar y pegar su contenido en **Firebase Console → Firestore Database → Reglas → Publicar** (no hay CLI/terminal disponible en el flujo de trabajo actual)
+4. Probar en `https://zephyrxvex4z.github.io/OxygeNMedia/`
 
-No hay `npm run dev` ni servidor local — se prueba directo contra el Firebase de producción. Ten cuidado al probar cosas destructivas (borrar usuarios, etc.).
+No hay `npm run dev` ni servidor local — se prueba directo contra el Firebase de producción.
 
 ### Firebase del proyecto
-
 - Proyecto: `workwebschool-5646f`
-- La configuración (`apiKey`, etc.) vive en `firebase-config.js` — **no es secreta**, está diseñada para ir pública en el frontend. La seguridad real la dan las Firestore Rules, no esa clave.
+- `firebase-config.js` contiene el `apiKey` público (no es secreto, la seguridad la dan las Firestore Rules)
+
+### OneSignal del proyecto (push)
+- App ID y REST API Key viven en `push.js` — ver la sección de [notificaciones push](#notificaciones-push-onesignal) para el aviso de seguridad correspondiente
 
 ---
 
 ## Estructura de archivos
 
-Cada "sección" del sitio es un par `.html` + `.js` independiente (páginas multi-archivo clásicas, no SPA):
-
 ```
-firebase-config.js       → inicializa Firebase, exporta `auth` y `db`. Todo lo demás importa de aquí.
-auth.js                  → login, registro, sesión, caché de perfil, restablecer contraseña
-notificaciones.js        → crear/escuchar notificaciones (campanita)
+firebase-config.js       → inicializa Firebase, exporta `auth` y `db`
+auth.js                  → login, registro, sesión, caché de perfil, restablecer contraseña, cuentaBloqueada()
+notificaciones.js        → crear/escuchar notificaciones (campanita) + dispara push automáticamente
 amistades.js             → enviar/aceptar/rechazar solicitudes de amistad
 logs.js                  → registrar y leer el historial de moderación
-wallet.js                → todo el sistema de créditos: saldo, transferencias, compras
+wallet.js                → créditos Ox2: saldo, transferencias, compras, tarjetas de regalo
+muro.js                  → publicaciones, likes, comentarios, hashtags, menciones, repost
+push.js                  → notificaciones push reales vía OneSignal
+temas.js                 → definición de los 5 temas visuales + lógica de aplicar/guardar
+tema-inline.js            → script anti-flash de tema, se carga en el <head> de cada página
+actualizaciones.js        → registro de novedades/changelog publicado por admins
 
-index.html + app.js      → página de entrada: login/registro, lista de recursos, drawer de navegación
-                            (candidata a rediseño una vez que el enfoque de red social avance — ver roadmap)
-admin.html + admin.js    → panel de administración (todas las pestañas de moderación)
-chat.html + chat.js      → chat privado y grupal en tiempo real — pieza central del enfoque social
-perfil.html + perfil.js  → editar el propio perfil (nombre, @, foto, bio, roles) — pieza central del enfoque social
-ver-perfil.html + .js    → buscar y ver el perfil de otros, enviar solicitud de amistad
-amigos.html + amigos.js  → lista de amigos aceptados
-solicitudes.html + .js   → solicitudes de amistad recibidas/enviadas (vista dedicada, sin depender de índices)
-billetera.html + .js     → saldo propio, transferencias, historial de movimientos
-juegos.html + juegos.js  → subir/jugar juegos HTML de la comunidad (sandbox)
-sugerencias.html + .js   → foro de sugerencias (con opción de anónimo)
-publicar-recurso.html/.js → formulario simplificado para que cualquier usuario publique un recurso GRATIS
-mis-recursos.html + .js  → editar/borrar los recursos que un usuario normal publicó
+index.html + app.js       → página de entrada: login/registro, lista de recursos, drawer de navegación
+admin.html + admin.js     → panel de administración (todas las pestañas de moderación)
+muro.html + muro-app.js   → el muro social: feed, publicar, likes, comentarios, hashtags, repost
+chat.html + chat.js       → chat privado y grupal en tiempo real, con edición/borrado de mensajes
+perfil.html + perfil.js   → editar el propio perfil (nombre, @, foto, bio, roles)
+ver-perfil.html + .js     → buscar y ver el perfil de otros, enviar solicitud de amistad
+amigos.html + amigos.js   → lista de amigos aceptados
+solicitudes.html + .js    → solicitudes de amistad recibidas/enviadas
+billetera.html + .js      → saldo, transferencias, canjear tarjetas de regalo, historial
+comprar-giftcard.html/.js → vitrina de tarjetas de regalo Ox2, compra vía WhatsApp
+novedades.html + .js      → página pública del registro de actualizaciones
+juegos.html + juegos.js   → subir/jugar juegos HTML de la comunidad (sandbox)
+sugerencias.html + .js    → foro de sugerencias (con opción de anónimo)
+publicar-recurso.html/.js → formulario para que cualquier usuario publique un recurso GRATIS
+mis-recursos.html + .js   → editar/borrar los recursos que un usuario normal publicó
+terminos.html              → términos y condiciones (cuenta, créditos, tarjetas, conducta, privacidad)
 
-manifest.json             → metadata de la PWA (nombre, íconos, colores)
-service-worker.js         → cachea archivos estáticos para carga rápida / soporte offline parcial
+manifest.json              → metadata de la PWA
+service-worker.js          → cachea archivos estáticos
+OneSignalSDKWorker.js       → service worker requerido por OneSignal para push
 icon-192.png, icon-512.png → íconos de la app
+giftcard-5/10/20/50.png     → imágenes de las 4 denominaciones de tarjetas de regalo
 
-firestore.rules            → reglas de seguridad (fuente de verdad de qué puede hacer quién)
-firestore.indexes.json     → índices compuestos necesarios (documentación; hay que crearlos a mano en consola)
-firebase.json               → config de Firebase Hosting (no se usa activamente, se usa GitHub Pages)
+firestore.rules             → reglas de seguridad (fuente de verdad de qué puede hacer quién)
+firestore.indexes.json      → índices compuestos necesarios (documentación; se crean a mano en consola)
+firebase.json                → config de Firebase Hosting (no se usa activamente, se usa GitHub Pages)
 ```
 
 ---
 
 ## Módulos compartidos (el corazón del código)
 
-Estos archivos no tienen HTML propio — los importa cualquier página que los necesite. Si vas a tocar lógica de negocio, probablemente está aquí:
-
 ### `auth.js`
-- `observarSesion(callback)` — el patrón que usa **cada página** para saber quién está logueado. Cachea el perfil en `sessionStorage` para que cambiar de página no tarde 3-5 segundos esperando ida y vuelta a Firestore cada vez.
-- `cuentaBloqueada(perfil)` — decide si una cuenta debe tratarse como bloqueada (no aprobada, o suspendida y la suspensión no venció). Se usa al inicio de cada página protegida. **Este es el punto exacto que hay que tocar si se abre el registro** — hoy "no aprobada" cuenta como bloqueada.
+- `observarSesion(callback)` — patrón que usa **cada página** para saber quién está logueado. Cachea el perfil en `sessionStorage` para que cambiar de página no tarde esperando ida y vuelta a Firestore.
+- `cuentaBloqueada(perfil)` — decide si una cuenta debe tratarse como bloqueada (no aprobada, o suspendida y sin vencer). Punto exacto a tocar si se abre el registro.
 - `registrarUsuario`, `iniciarSesion`, `cerrarSesion`, `enviarCorreoRestablecer`.
 
 ### `wallet.js`
-Todo el sistema de créditos. Usa `runTransaction` de Firestore para que las operaciones de dinero sean atómicas (o pasan completas, o no pasan). Funciones: `obtenerSaldo`, `transferirCredito`, `adminAjustarSaldo`, `comprarRecursoConSaldo`, `obtenerHistorial`.
+Todo el sistema de créditos Ox2. Usa `runTransaction` para que las operaciones de dinero sean atómicas. Funciones: `obtenerSaldo`, `transferirCredito`, `adminAjustarSaldo`, `comprarRecursoConSaldo`, `obtenerHistorial`, `crearTarjetaRegalo`, `canjearTarjetaRegalo`, `listarTarjetasRegalo`.
 
-### `notificaciones.js` / `amistades.js` / `logs.js`
-Módulos pequeños y enfocados, cada uno con su propia colección de Firestore. Se importan donde haga falta.
+### `muro.js`
+El feed social. `crearPublicacion` extrae automáticamente hashtags (`#tema`) y menciones (`@usuario`) del texto y dispara notificaciones a quien corresponda. `obtenerFeed` soporta paginación por cursor y filtro por hashtag o por lista de UIDs (para el feed "solo amigos"). `alternarLike` y `agregarComentario` mantienen contadores desnormalizados en el documento del post vía transacción.
+
+### `push.js`
+Envuelve el SDK web de OneSignal: `inicializarPush()` (carga el SDK), `pedirPermisoYVincular(uid)` (debe llamarse desde un click real del usuario), `enviarPush(uid, titulo, mensaje, url)`. Ver la sección dedicada más abajo para el aviso de seguridad de la REST API Key.
+
+### `notificaciones.js` / `amistades.js` / `logs.js` / `actualizaciones.js`
+Módulos pequeños y enfocados, cada uno con su propia colección de Firestore.
 
 ---
 
@@ -138,30 +152,64 @@ Módulos pequeños y enfocados, cada uno con su propia colección de Firestore. 
 
 | Colección | Qué guarda | Quién escribe |
 |---|---|---|
-| `usuarios/{uid}` | Perfil completo: nombre, email, rol, aprobado, suspendido, saldo, username, fotoURL, descripción, rolesPerfil, recursosComprados | El propio usuario (campos no sensibles), el admin (todo) |
-| `recursos/{id}` | Contenido compartido por la comunidad (datos públicos: título, precio, categoría, etc.) | Admin (cualquier precio), usuario normal (solo gratis) |
-| `recursos/{id}/contenidoProtegido/data` | El contenido real (texto + imagen) — **subcolección separada a propósito**, con sus propias reglas, para que el contenido de pago nunca llegue al navegador de quien no pagó | Autor del recurso, admin |
-| `chats/{id}` + `chats/{id}/mensajes/{id}` | Chats privados y grupales, con mensajes editables/eliminables | Miembros del chat |
-| `sugerencias/{id}` | Foro de sugerencias, con opción de autor anónimo | Cualquier aprobado (crear), admin (borrar/marcar revisada) |
-| `juegos/{id}` | Juegos HTML subidos, con el HTML completo guardado como texto | Admin (auto-aprobado), usuario normal (queda pendiente) |
-| `rolesDisponibles/{id}` | Roles de perfil (ej. "Matemático"), propuestos por usuarios, aprobados por admin | Usuario (proponer), admin (aprobar) |
-| `notificaciones/{id}` | Notificaciones por usuario (campanita) | Quien la origina, para el destinatario |
-| `amistades/{uidA_uidB}` | Relación de amistad, ID determinístico (los dos UIDs ordenados y unidos) | Ambas partes involucradas |
-| `transacciones/{id}` | Historial de todo movimiento de dinero — nunca se edita ni borra | Quien envía (transferencia), admin (ajustes) |
-| `logs/{id}` | Historial de acciones de moderación (suspensiones, etc.) — solo lectura para admins, nadie lo edita/borra | Admin |
+| `usuarios/{uid}` | Perfil: nombre, email, rol, aprobado, suspendido, saldo, username, fotoURL, descripción, rolesPerfil, recursosComprados | El propio usuario (campos no sensibles), el admin (todo) |
+| `recursos/{id}` + `contenidoProtegido/data` | Contenido compartido, con el contenido real en subcolección separada para que nunca llegue a quien no pagó | Admin (cualquier precio), usuario normal (solo gratis) |
+| `chats/{id}` + `mensajes/{id}` | Chats privados/grupales, mensajes editables/eliminables | Miembros del chat |
+| `publicaciones/{id}` + `likes/{uid}` + `comentarios/{id}` | El muro social: posts, likes, comentarios | Cualquier aprobado; likes solo el propio uid |
+| `sugerencias/{id}` | Foro de sugerencias, con autor opcionalmente anónimo | Cualquier aprobado (crear), admin (borrar) |
+| `juegos/{id}` | Juegos HTML subidos, el HTML completo como texto | Admin (auto-aprobado), usuario normal (queda pendiente) |
+| `rolesDisponibles/{id}` | Roles de perfil propuestos por usuarios, aprobados por admin | Usuario (proponer), admin (aprobar) |
+| `notificaciones/{id}` | Notificaciones por usuario (campanita + dispara push) | Quien la origina |
+| `amistades/{uidA_uidB}` | Relación de amistad, ID determinístico | Ambas partes involucradas |
+| `transacciones/{id}` | Historial de todo movimiento de dinero, inmutable | Quien envía, admin (ajustes) |
+| `tarjetasRegalo/{codigo}` | Tarjetas de regalo, el código ES el ID del documento | Admin (crear), cualquier aprobado (canjear una vez) |
+| `logs/{id}` | Historial de acciones de moderación, solo lectura admin | Admin |
+| `actualizaciones/{id}` | Registro de novedades publicado por admins | Admin |
+
+---
+
+## Sistema de temas visuales
+
+Cinco temas completos (colores + tipografías): **Terminal** (verde fósforo, monoespaciada), **Neobrutal** (bordes gruesos, sombras duras), **Editorial** (serif, papel crema), **Aurora** (glassmorphism, nocturno), **Minimal** (blanco y negro).
+
+- El usuario elige su tema desde el drawer en `index.html` (único lugar con el selector visual completo, vía `temas.js`)
+- La preferencia se guarda en `localStorage` (persiste entre sesiones y cierres de navegador)
+- **Cada página** carga `tema-inline.js` de forma síncrona en el `<head>`, antes de pintar nada, para aplicar el tema guardado sin parpadeo del tema por defecto
+- `tema-inline.js` debe mantenerse sincronizado a mano con `temas.js` si se agrega o edita un tema — son dos copias de los mismos datos por razones de rendimiento (una completa con lógica, otra mínima y síncrona)
+
+---
+
+## Notificaciones push (OneSignal)
+
+Cada vez que se crea una notificación interna (`crearNotificacion` en `notificaciones.js`), también se dispara un push real vía OneSignal — llega aunque el usuario tenga el sitio cerrado.
+
+- El usuario debe activar el permiso una vez desde el drawer ("🔔 Activar notificaciones push"), que llama `pedirPermisoYVincular(uid)` y asocia su navegador con su UID de Firebase (`OneSignal.login(uid)`)
+- El envío (`enviarPush`) llama directo a la REST API de OneSignal desde el navegador de quien origina la acción — no hay backend intermediario
+
+### Aviso de seguridad importante
+La **REST API Key** de OneSignal vive expuesta en `push.js` porque no hay backend que la esconda. Esa clave permite enviar notificaciones a cualquier usuario de la app de OneSignal — cualquiera que revise el código fuente del sitio puede copiarla y usarla para mandar notificaciones push arbitrarias. Es una limitación aceptada de no tener servidor propio. **Si algo raro pasa** (notificaciones que tú no enviaste), ve a OneSignal → Settings → Keys & IDs → regenera la REST API Key y actualízala en `push.js`.
+
+---
+
+## El sistema de créditos Ox2, en detalle
+
+- El admin da/quita saldo manualmente (`adminAjustarSaldo`) cuando alguien paga en efectivo, transferencia, Bitcoin u otra cripto
+- Los usuarios se transfieren crédito entre ellos (`transferirCredito`)
+- Comprar un recurso de pago con saldo lo descuenta y desbloquea al instante (`comprarRecursoConSaldo`)
+- **Tarjetas de regalo**: el admin genera un código único (`crearTarjetaRegalo`, formato `OXY-XXXX-XXXX`, sin caracteres ambiguos como 0/O o 1/I), lo entrega a quien pagó, y esa persona lo canjea desde `billetera.html` (`canjearTarjetaRegalo`) — el código es el ID del documento, así que un mismo código nunca puede existir duplicado, y la regla de Firestore exige `canjeada == false` antes de permitir el canje
+- `comprar-giftcard.html` es la vitrina pública: muestra las 4 denominaciones ($5/$10/$20/$50 USD → 200/400/800/2000 Ox2, todas con 5% de bono) y cada botón "Comprar" abre WhatsApp con un mensaje prellenado específico para esa denominación
+- Todo movimiento queda en `transacciones`, colección de solo-agregar que nadie edita ni borra
+
+### Limitación de seguridad honesta
+Sin Cloud Functions, Firestore Rules no puede verificar matemáticamente que una transferencia P2P sea atómica entre dos documentos distintos — cada documento se evalúa de forma independiente. El diseño actual permite a cualquiera restar de su propio saldo (nunca queda negativo) y sumar al saldo de otro (para recibir transferencias/tarjetas), dejando rastro completo en `transacciones` con el UID de quien originó cada movimiento. No es explotable por accidente, y cualquier abuso sería detectable y revertible manualmente. La solución "perfecta" requiere Cloud Functions (plan Blaze).
 
 ---
 
 ## Cómo funciona la seguridad
 
-**Regla de oro del proyecto**: el JavaScript del cliente decide qué *mostrar*, pero las **Firestore Rules** deciden qué está *permitido*. Cualquier validación que solo exista en el `.js` (ej. "este botón está deshabilitado") es únicamente cosmética — alguien con la consola del navegador abierta puede saltársela. Por eso:
-
-- El precio de un recurso creado por un usuario normal se fuerza a `0` **en las reglas**, no solo se oculta el campo en el formulario.
-- El contenido de pago vive en una subcolección con reglas propias que Firestore evalúa en el servidor — no llega al navegador de quien no pagó, ni siquiera "oculto en el HTML".
-- Suspender una cuenta la trata como "no aprobada" en cada página (`cuentaBloqueada`), y además el read de otros usuarios en las reglas también revisa que no esté suspendido.
+**Regla de oro**: el JS del cliente decide qué *mostrar*, las **Firestore Rules** deciden qué está *permitido*.
 
 ### Patrón repetido en casi todas las reglas
-
 ```javascript
 function esAprobadoUsuario() {
   return request.auth != null &&
@@ -172,106 +220,77 @@ function esAdminUsuario() {
          get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
 }
 ```
+Se repite dentro de cada bloque `match` (no se comparte entre bloques en este formato). Si cambia la lógica de "qué es un admin" o "qué significa tener acceso" (relevante para abrir el registro), hay que tocarla en cada bloque — búscala con `grep -n "esAprobadoUsuario\|esAdminUsuario"` en `firestore.rules`.
 
-Estas funciones se repiten dentro de cada bloque `match` (Firestore Rules no comparte funciones entre bloques `match` fácilmente en este formato). Si cambias la lógica de "qué es un admin" — o, más relevante ahora, si cambias qué significa "tener acceso" al abrir el registro — hay que tocarla en **cada bloque**, búscala con `grep -n "esAprobadoUsuario\|esAdminUsuario"` en `firestore.rules` antes de asumir que un solo cambio basta. Esto va a ser el trabajo más tedioso (aunque mecánico) de la transición a registro abierto.
-
-### Errores de "Missing or insufficient permissions" — causas típicas ya vividas en este proyecto
-
-1. **Falta un índice compuesto.** Cualquier query que combine `where(...)` + `orderBy(...)` en campos distintos necesita un índice compuesto que Firestore no crea solo. El error en consola trae un link que lo crea con un clic — hay que esperar 1-5 min a que diga "Enabled". *(Nota: como no hay terminal disponible en el flujo de trabajo, no se puede correr `firebase deploy --only firestore:indexes`; los índices se crean a mano en la consola web cada vez.)*
-2. **Reglas no publicadas.** Subir archivos a GitHub no toca las reglas de Firestore — son sistemas separados. Hay que copiar el contenido de `firestore.rules` y pegarlo en Firebase Console → Firestore → Reglas → Publicar cada vez que cambien.
-3. **`resource.data` es `null` en un `create`** — si una regla de lectura depende de `resource.data.algo` para decidir si un documento *inexistente* se puede leer (ej. verificar si ya existe una amistad antes de crearla), hay que usar `!exists(...)` explícitamente en vez de solo `resource.data`, o la regla truena en vez de simplemente decir "no existe".
-4. **HTML y JS desincronizados.** Si `admin.js` espera un elemento (`document.getElementById(...)`) que no existe todavía en el `admin.html` que está en línea (porque se subió una versión vieja del HTML), el script entero se rompe desde esa línea y *todo* deja de funcionar, no solo esa función — el error en consola apunta a la línea exacta (`admin.js:79`, por ejemplo). Cuando varios archivos dependen entre sí, hay que subirlos **todos juntos**, no uno por uno.
-
----
-
-## El sistema de créditos, en detalle
-
-Es la parte más delicada del proyecto porque mueve "dinero" (créditos internos, representan pagos en efectivo hechos en persona).
-
-- El admin da/quita saldo manualmente cuando alguien le paga en efectivo (`adminAjustarSaldo`).
-- Los usuarios pueden transferirse crédito entre ellos (`transferirCredito`) — esta parte encaja bien con el enfoque de red social (piénsalo como "propinas" o intercambios entre usuarios).
-- Comprar contenido de pago con saldo lo descuenta y desbloquea al instante (`comprarRecursoConSaldo`).
-- Todo movimiento queda en `transacciones`, que nadie puede editar ni borrar (colección de solo-agregar).
-
-### Limitación de seguridad honesta (léela antes de confiar ciegamente en el sistema)
-
-Sin Cloud Functions (que requieren activar el plan Blaze / dar una tarjeta), Firestore Rules **no puede verificar de forma matemáticamente perfecta** que una transferencia P2P sea atómica en el sentido de "si sumo a Juan, es porque a María se le restó exactamente lo mismo en la misma operación" — cada documento se evalúa de forma independiente. El diseño actual:
-
-- Permite a cualquiera **restar** de su propio saldo (nunca puede quedar negativo).
-- Permite a cualquiera **sumar** al saldo de otro (para recibir transferencias).
-- Deja rastro completo y permanente en `transacciones` con el UID de quien originó cada movimiento.
-
-Esto significa que, en teoría, alguien con conocimientos técnicos que manipule las llamadas directas a la API (saltándose la interfaz) podría intentar sumarse saldo sin la resta correspondiente. En la práctica esto no es explotable por accidente ni por un usuario común, y cualquier abuso quedaría registrado y sería revertible manualmente por el admin. Si el proyecto crece (más relevante aún si se abre el registro a más gente), la solución correcta es mover la lógica de transferencias a una Cloud Function (requiere plan Blaze).
+### Errores de "Missing or insufficient permissions" — causas típicas ya vividas
+1. **Falta un índice compuesto** (`where` + `orderBy` combinados). El error trae un link que lo crea con un clic; espera 1-5 min a que diga "Enabled". No hay CLI disponible, se crean a mano en consola cada vez.
+2. **Reglas no publicadas** — subir a GitHub no toca Firestore, son sistemas separados.
+3. **`resource.data` es `null` en un `create`** — usar `!exists(...)` explícito al verificar si un documento inexistente se puede leer (ej. amistades antes de crearse).
+4. **HTML y JS desincronizados** — si el `.js` espera un elemento que no existe en la versión del `.html` que está en línea, el script entero se rompe desde esa línea. Archivos que dependen entre sí deben subirse **todos juntos**.
 
 ---
 
 ## Convenciones del proyecto
 
-- **Idioma**: todo el código (nombres de variables, comentarios, colecciones de Firestore) está en español, consistente con que el público del sitio también lo es. No mezclar a mitad de camino.
-- **Estilo visual**: tema oscuro fijo, paleta definida por variables CSS al inicio de cada `<style>`:
-  ```css
-  --bg: #0f1420; --card: #1a2233; --border: #2a3550; --accent: #5b8def;
-  --text: #e8ecf5; --text-dim: #8b96b0; --success: #4caf7d; --danger: #e35d5d; --warn: #e0a941;
-  ```
-  Cada página redeclara estas variables en su propio `<style>` (no hay un CSS compartido en archivo aparte) — si cambias la paleta, hay que tocar cada archivo.
-- **Imágenes**: siempre por URL externa (recomendado: Imgur, con el link que empieza `i.imgur.com/...` y termina en la extensión, no el link a la página del post). Nunca subida de archivo binario a Firebase, porque activaría el plan de pago.
-- **Layout mobile-first fijo**: páginas tipo "dashboard" (`index.html`, `admin.html`, `chat.html`) usan `height: 100dvh` + `overflow: hidden` en el body, con un `.content-area` interno que hace el scroll — así se sienten como app nativa sin scroll de página completa. Páginas tipo formulario largo (`perfil.html`, `publicar-recurso.html`, etc.) usan scroll normal de página completa, que es más apropiado ahí.
-- **Menú de navegación**: `index.html` tiene un drawer lateral (`☰`) que centraliza los enlaces a todas las secciones. Si agregas una página nueva que un usuario deba poder visitar, agrégala al array `links` dentro del script de `index.html`.
-- **Confirmaciones destructivas**: cualquier acción que borre algo usa `confirm()` nativo del navegador antes de ejecutar. Es básico pero consistente en todo el proyecto.
+- **Idioma**: todo el código (variables, comentarios, colecciones de Firestore) en español.
+- **Estilo visual**: variables CSS de tema en cada `<style>` — `--bg`, `--card`, `--border`, `--accent`, `--accent-hover`, `--text`, `--text-dim`, `--success`, `--danger`, `--warn`, `--radius`, `--card-shadow`, `--input-bg`, `--font-display`, `--font-body`, `--font-weight-heading`. Los 5 temas de `temas.js` sobreescriben todas estas.
+- **Imágenes**: URL externa (Imgur con link `i.imgur.com/...`) para contenido de usuario. Las imágenes de gift cards son la única excepción — se suben directo al repo (`giftcard-5.png`, etc.) porque son activos fijos del sitio, no contenido de usuario.
+- **Layout mobile-first fijo**: páginas tipo dashboard (`index.html`, `admin.html`, `chat.html`, `muro.html`) usan `height: 100dvh` + `overflow: hidden` + `.content-area` interno con scroll. Páginas tipo formulario usan scroll normal de página completa.
+- **Menú de navegación**: drawer lateral (`☰`) en `index.html`, array `links` en su script. Cualquier página nueva de uso general va ahí.
+- **Confirmaciones destructivas**: `confirm()` nativo antes de cualquier borrado.
 
 ---
 
 ## Problemas conocidos y limitaciones
 
-- **La campanita de notificaciones necesita un índice compuesto** (`notificaciones`: `paraUid` + `fecha`) que documentamos en `firestore.indexes.json` pero que hay que crear manualmente en la consola — si nunca se creó, el badge de número nunca aparece aunque el resto del sitio funcione bien. La página `solicitudes.html` fue construida a propósito **sin** depender de este índice (ordena en JavaScript en vez de en la query) como alternativa confiable.
-- **No hay muro/feed social todavía** — la pieza que más se le acerca (`sugerencias.html`) fue diseñada como buzón de sugerencias, no como un feed de publicaciones. Si el nuevo enfoque lo requiere, es una colección y una página nuevas.
-- **No hay búsqueda de mensajes dentro de un chat** — solo scroll manual.
-- **El admin no tiene un dashboard de métricas** (usuarios totales, dinero en circulación, contenido más popular) — toda esa información existe en Firestore pero no hay una vista agregada todavía.
-- **Los juegos corren en `<iframe sandbox="allow-scripts">`**, que bloquea acceso a cookies/Firebase/navegación externa, pero no hay revisión automática de contenido — la aprobación de juegos de usuarios normales depende del criterio del admin al probarlos manualmente (hay un botón "Probar" en el panel antes de aprobar).
-- **Sin backend real**: cualquier feature que necesite lógica "de confianza total" (ej. verificación de pagos externos, envío de correos personalizados, cron jobs) no se puede hacer sin añadir Cloud Functions o un servicio externo.
+- **La campanita de notificaciones** puede necesitar un índice compuesto (`notificaciones`: `paraUid` + `fecha`) si nunca se creó manualmente — `solicitudes.html` fue construida a propósito sin depender de él (ordena en JS) como alternativa confiable.
+- **`index.html` sigue mostrando recursos como pantalla principal**, no el Muro — pendiente de la transición a red social.
+- **No hay dashboard de métricas** para el admin (usuarios activos, dinero circulante, contenido más popular).
+- **La REST API Key de OneSignal está expuesta** en el frontend — ver la sección de push para el detalle y qué hacer si se abusa.
+- **Los juegos corren en `<iframe sandbox="allow-scripts">`** — sin revisión automática, la aprobación de juegos de usuarios normales depende del criterio del admin (hay botón "Probar" antes de aprobar).
+- **Sin backend real**: verificación de pagos externos, correos personalizados, o cron jobs no son posibles sin Cloud Functions o un servicio externo.
 
 ---
 
 ## Cómo desplegar cambios
 
 1. Edita el/los archivo(s) necesario(s).
-2. Si tocaste `firestore.rules`: cópialo completo y pégalo en **Firebase Console → Firestore Database → Reglas → Publicar**. Espera unos segundos.
-3. Si agregaste una query nueva con `where` + `orderBy` combinados: prepárate para crear un índice la primera vez que se use (aparecerá el error con el link en la consola del navegador).
-4. Sube los archivos `.html`/`.js` modificados a la raíz del repo en GitHub (reemplazando, no duplicando).
-5. Espera 1-2 minutos de propagación de GitHub Pages.
-6. Prueba con `Ctrl+Shift+R` (recarga forzada sin caché) — los navegadores cachean agresivamente los `.js`, y es fácil pensar que algo "no funcionó" cuando en realidad seguía cargando la versión vieja desde caché.
-7. Si tocaste varios archivos que dependen entre sí (ej. un `.html` y su `.js`), súbelos **todos juntos** en el mismo momento — una combinación de versión vieja + nueva puede romper todo el script silenciosamente.
+2. Si tocaste `firestore.rules`: pégalo completo en Firebase Console → Firestore → Reglas → Publicar.
+3. Si agregaste una query con `where` + `orderBy` combinados: prepárate para crear un índice la primera vez que se use.
+4. Sube los archivos modificados a la raíz del repo, **todos los que dependen entre sí juntos**.
+5. Espera 1-2 min de propagación de GitHub Pages.
+6. Prueba con `Ctrl+Shift+R` (recarga forzada sin caché).
 
 ---
 
 ## Roadmap
 
 ### Transición a red social (prioridad actual)
-- Abrir el registro (quitar o hacer opcional la aprobación manual) — ver [la sección de transición](#de-plataforma-escolar-a-red-social-transición-en-curso) para el detalle técnico de qué archivos toca
-- Rediseñar `index.html` para que el centro sea el perfil/actividad social, no la lista de recursos
-- Evaluar si construir un muro/feed de publicaciones tipo red social
+- Abrir el registro (quitar o hacer opcional la aprobación manual)
+- Rediseñar `index.html` para que el centro sea el Muro/perfil, no la lista de recursos
 
-### Ideas pendientes de antes (siguen vigentes)
-- Dashboard de estadísticas para el admin (usuarios activos, dinero circulante, contenido más popular)
-- Notificaciones automáticas para más eventos (contenido aprobado, juego aprobado, rol aprobado) — el sistema (`notificaciones.js`) ya soporta cualquier tipo, solo falta llamarlo desde los lugares correspondientes
-- Avisar al usuario cuando se aprueba su cuenta (hoy se entera hasta que refresca la página) — relevante solo mientras el registro siga siendo cerrado
+### Ideas pendientes
+- Dashboard de estadísticas para el admin
+- Notificaciones automáticas para más eventos (contenido aprobado, juego aprobado, rol aprobado) — `notificaciones.js` ya soporta cualquier tipo
+- Avisar al usuario cuando se aprueba su cuenta
 - Búsqueda de mensajes dentro de un chat
+- Mover la lógica de transferencias/tarjetas a Cloud Functions si el proyecto crece (cerraría la limitación de seguridad del wallet)
 
 ---
 
-## Preguntas frecuentes de alguien nuevo en el proyecto
-
-**¿Por qué el README habla de "escuela" en varios lados si ahora es una red social?**
-Porque el código de hoy todavía tiene esa forma — el cambio de enfoque está decidido pero no completamente implementado. Ver la sección de transición para el detalle exacto de qué falta.
+## Preguntas frecuentes
 
 **¿Por qué no hay `npm install` ni build?**
-Porque el proyecto usa ES modules nativos del navegador y los SDKs de Firebase vía CDN (`<script type="module">` + imports desde `gstatic.com`). No hay bundler, no hay paso de compilación. Es intencional: mantiene el proyecto simple de editar directo en GitHub.
+ES modules nativos + SDKs de Firebase vía CDN. Sin bundler ni paso de compilación, intencionalmente.
 
-**¿Dónde está la contraseña / API key secreta de Firebase?**
-No existe tal cosa en este proyecto. El `apiKey` en `firebase-config.js` es público por diseño de Firebase — la seguridad depende 100% de las Firestore Rules.
+**¿Dónde está la API key secreta de Firebase?**
+No existe — el `apiKey` en `firebase-config.js` es público por diseño de Firebase.
 
-**¿Por qué no usamos Firebase Storage para las imágenes?**
-Activarlo pide vincular una tarjeta (plan Blaze), aunque el uso se quede dentro de la capa gratuita. Se optó por URLs externas (Imgur) para no requerir eso.
+**¿Por qué no usamos Firebase Storage?**
+Pide tarjeta (plan Blaze) aunque el uso se quede en la capa gratuita. Se usan URLs externas en su lugar.
 
-**Encontré una función `esAdminUsuario()` repetida 8 veces en `firestore.rules`, ¿es un error?**
-No, es una limitación del formato de reglas de Firestore — las funciones declaradas dentro de un bloque `match` no se comparten automáticamente con otros bloques `match` al mismo nivel sin repetirlas. Es intencional y consistente en todo el archivo.
+**¿Por qué OneSignal y no Firebase Cloud Messaging directo?**
+FCM con push real (sitio cerrado) necesita algo que dispare el envío del lado del servidor — normalmente una Cloud Function. OneSignal permite enviar directo desde el cliente vía su REST API, sin backend propio, aceptando el riesgo de exponer la REST API Key (ver sección de push).
+
+**Encontré `esAdminUsuario()` repetida muchas veces en `firestore.rules`, ¿es un error?**
+No — las reglas de Firestore no comparten funciones entre bloques `match` en este formato. Es intencional.
