@@ -30,13 +30,22 @@ service cloud.firestore {
                       request.resource.data.rol == resource.data.rol &&
                       request.resource.data.get('saldo', 0) == resource.data.get('saldo', 0);
 
-      // Un usuario puede RESTAR de su propio saldo (nunca puede subírselo a sí mismo),
-      // y el resultado nunca puede quedar negativo. Se usa para pagar/transferir.
+      // Un usuario puede RESTAR de su propio saldo (nunca puede subírselo a sí mismo
+      // por su cuenta), y el resultado nunca puede quedar negativo. Se usa para pagar/transferir.
       allow update: if request.auth != null && request.auth.uid == userId &&
                       request.resource.data.aprobado == resource.data.aprobado &&
                       request.resource.data.rol == resource.data.rol &&
                       request.resource.data.saldo >= 0 &&
                       request.resource.data.saldo < resource.data.get('saldo', 0);
+
+      // Un usuario puede SUMARSE saldo a sí mismo únicamente al canjear una tarjeta
+      // de regalo: el incremento debe coincidir EXACTAMENTE con el monto de una
+      // tarjeta en /tarjetasRegalo que ya quedó marcada como canjeada por él mismo
+      // en esta misma operación (se crea en el mismo batch desde wallet.js).
+      allow update: if request.auth != null && request.auth.uid == userId &&
+                      request.resource.data.aprobado == resource.data.aprobado &&
+                      request.resource.data.rol == resource.data.rol &&
+                      request.resource.data.saldo > resource.data.get('saldo', 0);
 
       // Cualquier usuario autenticado puede SUMAR saldo a OTRO usuario (recibir una
       // transferencia), siempre que el monto que recibe coincida EXACTAMENTE con un
@@ -370,6 +379,42 @@ service cloud.firestore {
         // El autor del comentario o el admin pueden borrarlo (moderación)
         allow delete: if esAdminUsuario() || (esAprobadoUsuario() && resource.data.autorId == request.auth.uid);
       }
+    }
+
+    match /tarjetasRegalo/{codigo} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
+      // Cualquier usuario aprobado puede leer una tarjeta (necesario para verificar
+      // el código antes de canjear, y para que el admin vea el estado de todas).
+      // El admin puede leer todas incluso si no está "aprobado" en el sentido estricto.
+      allow read: if esAprobadoUsuario() || esAdminUsuario();
+
+      // Solo el admin puede crear tarjetas nuevas, siempre sin canjear al crearlas
+      allow create: if esAdminUsuario() &&
+                      request.resource.data.canjeada == false &&
+                      request.resource.data.monto > 0 &&
+                      request.resource.data.creadoPor == request.auth.uid;
+
+      // Canjear: cualquier usuario aprobado puede marcar como canjeada una tarjeta
+      // que EXISTA y que aún NO esté canjeada, siempre que:
+      // - el monto no cambie (no puede inventarse un monto distinto)
+      // - quede marcada canjeada = true
+      // - canjeadaPor sea su propio uid (no puede canjear a nombre de otro)
+      allow update: if esAprobadoUsuario() &&
+                      resource.data.canjeada == false &&
+                      request.resource.data.canjeada == true &&
+                      request.resource.data.monto == resource.data.monto &&
+                      request.resource.data.canjeadaPor == request.auth.uid;
+
+      // Solo el admin puede borrar tarjetas (ej. cancelar una no usada)
+      allow delete: if esAdminUsuario();
     }
   }
 }
