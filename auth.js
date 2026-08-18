@@ -126,6 +126,14 @@ export function cuentaBloqueada(perfil) {
   return { bloqueada: false };
 }
 
+// Revisa si el sitio está en modo mantenimiento. Los admins (rol === "admin")
+// nunca se bloquean por mantenimiento, sin importar lo que devuelva esto.
+// Se importa perezosamente para no crear un ciclo de imports con mantenimiento.js.
+export async function verificarMantenimiento() {
+  const { obtenerEstadoMantenimiento } = await import("./mantenimiento.js");
+  return obtenerEstadoMantenimiento();
+}
+
 // Traduce errores comunes de Firebase Auth a mensajes en español
 export function traducirErrorAuth(error) {
   const codigo = error.code || "";
