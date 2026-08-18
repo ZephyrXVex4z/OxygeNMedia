@@ -3,7 +3,7 @@
 
 import { db } from "./firebase-config.js";
 import { observarSesion, cuentaBloqueada } from "./auth.js";
-import { obtenerSaldo, transferirCredito, obtenerHistorial } from "./wallet.js";
+import { obtenerSaldo, transferirCredito, obtenerHistorial, canjearTarjetaRegalo } from "./wallet.js";
 import {
   collection, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -21,6 +21,9 @@ const btnTransferir = document.getElementById("btnTransferir");
 const msgTransferir = document.getElementById("msgTransferir");
 const listaHistorial = document.getElementById("listaHistorial");
 const emptyHistorial = document.getElementById("emptyHistorial");
+const inputCodigoTarjeta = document.getElementById("inputCodigoTarjeta");
+const btnCanjear = document.getElementById("btnCanjear");
+const msgCanjear = document.getElementById("msgCanjear");
 
 observarSesion((user, perfil) => {
   if (!user || cuentaBloqueada(perfil).bloqueada) {
@@ -134,6 +137,40 @@ function mostrarMsg(texto, tipo) {
   msgTransferir.className = "msg " + tipo;
 }
 
+// ============ CANJEAR TARJETA DE REGALO ============
+
+inputCodigoTarjeta.addEventListener("input", () => {
+  inputCodigoTarjeta.value = inputCodigoTarjeta.value.toUpperCase();
+});
+
+btnCanjear.addEventListener("click", async () => {
+  const codigo = inputCodigoTarjeta.value.trim();
+  msgCanjear.style.display = "none";
+
+  if (!codigo) {
+    mostrarMsgCanjear("Escribe el código de la tarjeta.", "error");
+    return;
+  }
+
+  btnCanjear.disabled = true;
+  try {
+    const monto = await canjearTarjetaRegalo(codigo, usuarioActual.uid, usuarioActual.nombre);
+    mostrarMsgCanjear(`¡Listo! Se agregaron $${monto} a tu saldo.`, "ok");
+    inputCodigoTarjeta.value = "";
+    refrescarSaldo();
+    cargarHistorial();
+  } catch (err) {
+    mostrarMsgCanjear(err.message, "error");
+  }
+  btnCanjear.disabled = false;
+});
+
+function mostrarMsgCanjear(texto, tipo) {
+  msgCanjear.textContent = texto;
+  msgCanjear.className = "msg " + tipo;
+  msgCanjear.style.display = "block";
+}
+
 // ============ HISTORIAL ============
 
 async function cargarHistorial() {
@@ -159,9 +196,11 @@ async function cargarHistorial() {
       texto = "Crédito removido por un admin";
     } else if (t.tipo === "compra_recurso") {
       texto = t.motivo || "Compra de recurso";
+    } else if (t.tipo === "canje_tarjeta") {
+      texto = "🎁 " + (t.motivo || "Tarjeta de regalo canjeada");
     }
 
-    const esPositivo = esRecibido || t.tipo === "admin_dar";
+    const esPositivo = esRecibido || t.tipo === "admin_dar" || t.tipo === "canje_tarjeta";
     return `
       <div class="historial-item">
         <div class="historial-desc">
@@ -172,5 +211,4 @@ async function cargarHistorial() {
       </div>
     `;
   }).join("");
-    }
-
+}
