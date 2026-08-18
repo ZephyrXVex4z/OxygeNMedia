@@ -298,7 +298,7 @@
   <header>
     <h1>
       <button class="hamburger-btn hidden" id="btnAbrirDrawer">☰</button>
-      🌐 OxygeNMedia
+      📚 OxygeNMedia
     </h1>
     <div style="display:flex; align-items:center; gap:10px;">
       <div class="bell-wrapper hidden" id="bellWrapper">
@@ -414,7 +414,7 @@
 </div>
 
 <script type="module">
-import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth, enviarCorreoRestablecer, cuentaBloqueada } from "./auth.js";
+import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth, enviarCorreoRestablecer, cuentaBloqueada, verificarMantenimiento } from "./auth.js";
 import { cargarRecursos } from "./app.js";
 import { escucharNotificaciones, marcarNotificacionLeida, marcarTodasLeidas, borrarNotificacion } from "./notificaciones.js";
 import { aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
@@ -776,6 +776,32 @@ observarSesion((user, perfil) => {
     return;
   }
 
+  // Modo mantenimiento: bloquea a todos excepto admins
+  if (perfil.rol !== "admin") {
+    verificarMantenimiento().then(estadoMant => {
+      if (estadoMant.activo) {
+        userInfo.innerHTML = `<button class="secondary" onclick="location.reload()">↻</button>`;
+        btnAbrirDrawer.classList.add("hidden");
+        bellWrapper.classList.add("hidden");
+        document.getElementById("pendingIcon").textContent = "🛠️";
+        document.getElementById("pendingTitulo").textContent = "Sitio en mantenimiento";
+        let texto = estadoMant.motivo ? "Motivo: " + estadoMant.motivo : "Volvemos pronto.";
+        if (estadoMant.horario) texto += "\n" + estadoMant.horario;
+        if (estadoMant.activadoPorNombre) texto += "\nActivado por: " + estadoMant.activadoPorNombre;
+        document.getElementById("pendingTexto").textContent = texto;
+        document.getElementById("pendingTexto").style.whiteSpace = "pre-line";
+        mostrarSoloVista(pendingView);
+      } else {
+        continuarCargaNormal(user, perfil);
+      }
+    });
+    return;
+  }
+
+  continuarCargaNormal(user, perfil);
+});
+
+function continuarCargaNormal(user, perfil) {
   perfilGlobal = perfil;
   uidGlobal = user.uid;
   btnAbrirDrawer.classList.remove("hidden");
@@ -800,7 +826,7 @@ observarSesion((user, perfil) => {
 
   mostrarSoloVista(resourcesView);
   cargarRecursos(perfil, uidGlobal);
-});
+}
 </script>
 
 <script>
