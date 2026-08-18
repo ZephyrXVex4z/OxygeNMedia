@@ -416,5 +416,34 @@ service cloud.firestore {
       // Solo el admin puede borrar tarjetas (ej. cancelar una no usada)
       allow delete: if esAdminUsuario();
     }
+
+    match /actualizaciones/{id} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
+      // Cualquier usuario aprobado puede leer el registro de actualizaciones
+      allow read: if esAprobadoUsuario() || esAdminUsuario();
+
+      // Solo el admin puede publicar, editar o borrar actualizaciones
+      allow create, update, delete: if esAdminUsuario();
+    }
+
+    match /configuracion/{docId} {
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+      // Cualquiera con sesión (incluso sin estar aprobado todavía) puede LEER el
+      // estado de mantenimiento -- se necesita antes de saber si puede pasar.
+      allow read: if request.auth != null;
+      // Solo el admin puede activar/desactivar mantenimiento
+      allow write: if esAdminUsuario();
+    }
   }
 }
