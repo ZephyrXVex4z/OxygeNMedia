@@ -1,376 +1,468 @@
-// ver-perfil.js
-// Buscar usuarios por @username y ver su perfil completo
-
-import { db } from "./firebase-config.js";
-import { observarSesion, cuentaBloqueada } from "./auth.js";
-import {
-  collection, doc, getDoc, addDoc, getDocs, query, where, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
-import { obtenerEstadoAmistad, enviarSolicitudAmistad, aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
-import { insigniaVerificado } from "./verificados.js";
-import { siguiendoA, seguirUsuario, dejarDeSeguir } from "./seguidores.js";
-import { crearReporte, TIPO_OBJETIVO, MOTIVOS_POR_TIPO } from "./reportes.js";
-
-let usuarioActual = null;
-let perfilVisto = null; // { uid, nombre, username, ... } del perfil que se está mostrando
-
-const buscadorCard = document.getElementById("buscadorCard");
-const perfilCard = document.getElementById("perfilCard");
-const buscarUsername = document.getElementById("buscarUsername");
-const resultadosBusqueda = document.getElementById("resultadosBusqueda");
-
-const verAvatarImg = document.getElementById("verAvatarImg");
-const verAvatarInicial = document.getElementById("verAvatarInicial");
-const verNombre = document.getElementById("verNombre");
-const verInsignias = document.getElementById("verInsignias");
-const verUsername = document.getElementById("verUsername");
-const verSeguidores = document.getElementById("verSeguidores");
-const verRoles = document.getElementById("verRoles");
-const verDescripcion = document.getElementById("verDescripcion");
-const btnChatearDesdeAqui = document.getElementById("btnChatearDesdeAqui");
-const btnAmistad = document.getElementById("btnAmistad");
-const btnSeguir = document.getElementById("btnSeguir");
-const btnReportarUsuario = document.getElementById("btnReportarUsuario");
-const btnVolverBusqueda = document.getElementById("btnVolverBusqueda");
-
-observarSesion((user, perfil) => {
-  if (!user || cuentaBloqueada(perfil).bloqueada) {
-    document.body.innerHTML = "<div style='padding:60px;text-align:center;color:#8b96b0;'>Debes iniciar sesión y estar aprobado para ver perfiles. <br><br><a href='index.html' style='color:#5b8def;'>Volver al sitio</a></div>";
-    return;
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Admin — OxygeNMedia</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5b8def">
+<script src="tema-inline.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --card: #1a2233;
+    --border: #2a3550;
+    --accent: #5b8def;
+    --accent-hover: #4a7ad9;
+    --text: #e8ecf5;
+    --text-dim: #8b96b0;
+    --danger: #e35d5d;
+    --success: #4caf7d;
+    --warn: #e0a941;
+    --radius: 14px;
+    --card-shadow: none;
+    --input-bg: #10182a;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-weight-heading: 700;
   }
-  usuarioActual = { uid: user.uid, ...perfil };
-
-  // Si viene un ?uid=xxx en la URL, muestra directo ese perfil
-  const params = new URLSearchParams(location.search);
-  const uidParam = params.get("uid");
-  if (uidParam) {
-    mostrarPerfil(uidParam);
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    overscroll-behavior: none;
   }
-});
-
-// ============ BÚSQUEDA POR @USERNAME ============
-
-let debounceBusqueda = null;
-buscarUsername.addEventListener("input", () => {
-  clearTimeout(debounceBusqueda);
-  const texto = buscarUsername.value.trim().replace(/^@/, "").toLowerCase();
-  if (texto.length < 2) {
-    resultadosBusqueda.innerHTML = "";
-    return;
+  .app-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+  .content-area { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
-  debounceBusqueda = setTimeout(() => buscarPorUsername(texto), 300);
-});
-
-async function buscarPorUsername(texto) {
-  // Nota: esto trae todos los usuarios aprobados y filtra en el navegador.
-  // Funciona bien para decenas/cientos de usuarios (un salón o escuela).
-  // Si el proyecto creciera mucho, convendría buscar con un campo indexado exacto.
-  const snap = await getDocs(query(collection(db, "usuarios"), where("aprobado", "==", true)));
-  const resultados = [];
-  snap.forEach(docSnap => {
-    const u = docSnap.data();
-    const coincideUsername = u.username && u.username.toLowerCase().includes(texto);
-    const coincideNombre = u.nombre && u.nombre.toLowerCase().includes(texto);
-    if (coincideUsername || coincideNombre) {
-      resultados.push({ uid: docSnap.id, ...u });
-    }
-  });
-
-  resultadosBusqueda.innerHTML = "";
-  if (resultados.length === 0) {
-    resultadosBusqueda.innerHTML = "<div class='empty'>No se encontraron usuarios con ese @.</div>";
-    return;
+  header h1 { font-size: 17px; margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: var(--font-weight-heading); }
+  button {
+    font-family: var(--font-body);
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 9px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
   }
+  button:hover { background: var(--accent-hover); }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  button.secondary:hover { background: var(--card); }
+  button.danger { background: var(--danger); }
+  button.success { background: var(--success); }
+  .tabs {
+    display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--border);
+    overflow-x: auto; -webkit-overflow-scrolling: touch; flex-shrink: 0;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 10px 14px;
+    cursor: pointer;
+    color: var(--text-dim);
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .content { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  .hidden { display: none !important; }
 
-  resultados.forEach(u => {
-    const row = document.createElement("div");
-    row.className = "search-result";
-    const inicial = (u.nombre || "?")[0].toUpperCase();
-    row.innerHTML = `
-      ${u.fotoURL
-        ? `<img class="search-avatar" src="${u.fotoURL}" onerror="this.outerHTML='<div class=&quot;search-avatar&quot;>${inicial}</div>'">`
-        : `<div class="search-avatar">${inicial}</div>`}
-      <div class="search-info">
-        <div class="nombre">${u.nombre}</div>
-        <div class="username">@${u.username}</div>
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  label { font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  textarea { min-height: 70px; resize: vertical; font-family: inherit; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .checkbox-row input { width: auto; margin: 0; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { color: var(--text-dim); font-weight: 600; }
+  .badge { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
+  .badge.gratis { background: rgba(76,175,125,0.15); color: var(--success); }
+  .badge.pago { background: rgba(224,169,65,0.15); color: var(--warn); }
+  .badge.publico { background: rgba(91,141,239,0.15); color: var(--accent); }
+  .badge.privado { background: rgba(139,150,176,0.15); color: var(--text-dim); }
+  .row-actions { display: flex; gap: 6px; }
+  .empty { color: var(--text-dim); text-align: center; padding: 30px; }
+  .denied { max-width: 480px; margin: 100px auto; text-align: center; }
+  .msg { font-size: 13px; padding: 8px 12px; border-radius: var(--radius); margin-bottom: 12px; display: none; }
+  .msg.ok { background: rgba(76,175,125,0.12); color: var(--success); }
+  .msg.err { background: rgba(227,93,93,0.12); color: var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+<header>
+  <h1>🛠️ Panel Admin</h1>
+  <div>
+    <a href="index.html"><button class="secondary">Ver sitio</button></a>
+    <button class="secondary" id="btnLogout">Salir</button>
+  </div>
+</header>
+
+<div class="content-area">
+<div class="denied hidden" id="deniedView">
+  <h2>Acceso restringido</h2>
+  <p style="color:var(--text-dim)">Esta sección es solo para administradores.</p>
+  <a href="index.html"><button>Volver al sitio</button></a>
+</div>
+
+<div id="adminPanel" class="hidden">
+  <div class="tabs">
+    <div class="tab active" data-tab="recursos">Recursos</div>
+    <div class="tab" data-tab="usuarios">Usuarios pendientes</div>
+    <div class="tab" data-tab="todos">Todos los usuarios</div>
+    <div class="tab" data-tab="roles">Roles pendientes</div>
+    <div class="tab" data-tab="juegos">Juegos pendientes</div>
+    <div class="tab" data-tab="registro">Registro</div>
+    <div class="tab" data-tab="tarjetas">Tarjetas de regalo</div>
+    <div class="tab" data-tab="novedades">Novedades</div>
+    <div class="tab" data-tab="reportes">Reportes</div>
+    <div class="tab" data-tab="verificaciones">Verificaciones</div>
+    <div class="tab" data-tab="mantenimiento">Mantenimiento</div>
+  </div>
+
+  <div class="content">
+
+    <!-- TAB: Recursos -->
+    <div id="tabRecursos">
+      <div class="card">
+        <h3 id="formTitulo">Nuevo recurso</h3>
+        <div class="msg" id="msgRecurso"></div>
+        <input type="hidden" id="recursoId">
+        <div class="form-grid">
+          <div class="full">
+            <label>Título</label>
+            <input type="text" id="rTitulo" placeholder="Ej. Tarea de Química - Estequiometría">
+          </div>
+          <div class="full">
+            <label>Descripción corta (se muestra en la tarjeta)</label>
+            <textarea id="rDescripcion" placeholder="Breve resumen visible para todos"></textarea>
+          </div>
+          <div class="full">
+            <label>Contenido completo (solo visible si tiene acceso)</label>
+            <textarea id="rContenido" placeholder="Aquí va el contenido real: respuestas, información, enlaces, etc."></textarea>
+          </div>
+          <div class="full">
+            <label>URL de imagen del contenido (opcional — solo se ve si el usuario tiene acceso, ej. foto de apuntes/respuestas)</label>
+            <input type="text" id="rImagenContenidoURL" placeholder="https://i.imgur.com/ejemplo.jpg">
+            <img id="rImagenContenidoPreview" class="hidden" style="max-width:100%; max-height:160px; border-radius:8px; margin-top:6px; margin-bottom:10px; object-fit:cover;">
+          </div>
+          <div>
+            <label>Categoría</label>
+            <input type="text" id="rCategoria" placeholder="Ej. Química, Matemáticas">
+          </div>
+          <div>
+            <label>Precio (MXN, si es de paga)</label>
+            <input type="number" id="rPrecio" placeholder="0" min="0">
+          </div>
+          <div class="full">
+            <label>URL de imagen de portada (opcional — esta SÍ se ve siempre, sin pagar, es la miniatura de la tarjeta)</label>
+            <input type="text" id="rImagenURL" placeholder="https://i.imgur.com/ejemplo.jpg">
+            <img id="rImagenPreview" class="hidden" style="max-width:100%; max-height:160px; border-radius:8px; margin-top:6px; margin-bottom:10px; object-fit:cover;">
+          </div>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="rGratis"> <label style="margin:0">Es gratis</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="rPublico"> <label style="margin:0">Es público (visible sin necesidad de estar aprobado)</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="rVisible" checked> <label style="margin:0">Visible en el sitio (desactiva para ocultarlo sin borrarlo)</label>
+        </div>
+        <button id="btnGuardarRecurso">Guardar recurso</button>
+        <button class="secondary hidden" id="btnCancelarEdicion">Cancelar edición</button>
       </div>
-    `;
-    row.addEventListener("click", () => mostrarPerfilDatos(u));
-    resultadosBusqueda.appendChild(row);
-  });
-}
 
-// ============ MOSTRAR PERFIL ============
-
-async function mostrarPerfil(uid) {
-  if (uid === usuarioActual.uid) {
-    location.href = "perfil.html";
-    return;
-  }
-  const snap = await getDoc(doc(db, "usuarios", uid));
-  if (!snap.exists()) {
-    resultadosBusqueda.innerHTML = "<div class='empty'>Ese usuario no existe.</div>";
-    return;
-  }
-  mostrarPerfilDatos({ uid, ...snap.data() });
-}
-
-function mostrarPerfilDatos(u) {
-  perfilVisto = u;
-
-  buscadorCard.classList.add("hidden");
-  perfilCard.classList.remove("hidden");
-
-  verNombre.textContent = u.nombre || "Sin nombre";
-  if (verInsignias) verInsignias.innerHTML = insigniaVerificado(u);
-  verUsername.textContent = u.username ? "@" + u.username : "";
-  if (verSeguidores) verSeguidores.textContent = `${u.seguidoresCount || 0} seguidores · ${u.siguiendoCount || 0} seguidos`;
-
-  if (u.fotoURL) {
-    verAvatarImg.src = u.fotoURL;
-    verAvatarImg.classList.remove("hidden");
-    verAvatarInicial.classList.add("hidden");
-    verAvatarImg.onerror = () => {
-      verAvatarImg.classList.add("hidden");
-      verAvatarInicial.classList.remove("hidden");
-    };
-  } else {
-    verAvatarImg.classList.add("hidden");
-    verAvatarInicial.classList.remove("hidden");
-    verAvatarInicial.textContent = (u.nombre || "?")[0].toUpperCase();
-  }
-
-  const roles = u.rolesPerfil || [];
-  verRoles.innerHTML = roles.length
-    ? roles.map(r => `<span class="role-chip">${r}</span>`).join("")
-    : "";
-
-  if (u.descripcion) {
-    verDescripcion.textContent = u.descripcion;
-    verDescripcion.classList.remove("hidden");
-  } else {
-    verDescripcion.classList.add("hidden");
-  }
-
-  actualizarBotonAmistad();
-  actualizarBotonSeguir();
-}
-
-// ============ SEGUIR (independiente de amistad) ============
-
-async function actualizarBotonSeguir() {
-  if (!btnSeguir) return;
-  btnSeguir.disabled = true;
-  btnSeguir.textContent = "Cargando...";
-
-  const yaSigue = await siguiendoA(usuarioActual.uid, perfilVisto.uid);
-  btnSeguir.textContent = yaSigue ? "✓ Siguiendo (dejar de seguir)" : "➕ Seguir";
-  btnSeguir.disabled = false;
-}
-
-if (btnSeguir) {
-  btnSeguir.addEventListener("click", async () => {
-    if (!perfilVisto) return;
-    btnSeguir.disabled = true;
-    try {
-      const yaSigue = await siguiendoA(usuarioActual.uid, perfilVisto.uid);
-      if (yaSigue) {
-        await dejarDeSeguir(usuarioActual.uid, perfilVisto.uid);
-        perfilVisto.seguidoresCount = Math.max(0, (perfilVisto.seguidoresCount || 0) - 1);
-      } else {
-        await seguirUsuario(usuarioActual.uid, usuarioActual.nombre, perfilVisto.uid, perfilVisto.nombre);
-        perfilVisto.seguidoresCount = (perfilVisto.seguidoresCount || 0) + 1;
-      }
-      if (verSeguidores) verSeguidores.textContent = `${perfilVisto.seguidoresCount || 0} seguidores · ${perfilVisto.siguiendoCount || 0} seguidos`;
-      await actualizarBotonSeguir();
-    } catch (err) {
-      alert("Error: " + err.message);
-      btnSeguir.disabled = false;
-    }
-  });
-}
-
-// ============ REPORTAR USUARIO ============
-
-if (btnReportarUsuario) {
-  btnReportarUsuario.addEventListener("click", () => {
-    if (!perfilVisto) return;
-    abrirModalReporteUsuario();
-  });
-}
-
-function abrirModalReporteUsuario() {
-  let modal = document.getElementById("modalReporteUsuario");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "modalReporteUsuario";
-    modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;";
-    document.body.appendChild(modal);
-    modal.addEventListener("click", (e) => { if (e.target === modal) modal.innerHTML = ""; });
-  }
-
-  const motivos = MOTIVOS_POR_TIPO.usuario;
-  modal.innerHTML = `
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;">
-      <h3 style="margin-top:0;">Reportar usuario</h3>
-      <p style="font-size:12px;color:var(--text-dim);margin-top:-8px;">
-        Vas a reportar a <strong>${perfilVisto.nombre}</strong>. Un administrador revisará tu reporte.
-      </p>
-
-      <label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:4px;">Motivo</label>
-      <select id="selectMotivoReporteUsuario" style="width:100%;padding:10px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:14px;margin-bottom:12px;">
-        <option value="">Selecciona un motivo...</option>
-        ${motivos.map(m => `<option value="${m}">${m}</option>`).join("")}
-      </select>
-
-      <label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:4px;">Proporcione más información (opcional)</label>
-      <textarea id="inputInfoReporteUsuario" placeholder="Ej: El nombre indica una grosería" style="width:100%;min-height:70px;padding:10px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:14px;resize:vertical;margin-bottom:14px;"></textarea>
-
-      <div id="errorReporteUsuario" style="display:none;color:var(--danger);font-size:12px;margin-bottom:10px;"></div>
-
-      <div style="display:flex;gap:8px;">
-        <button id="btnCancelarReporteUsuario" type="button" class="secondary" style="flex:1;">Cancelar</button>
-        <button id="btnEnviarReporteUsuario" type="button" style="flex:1;">Enviar reporte</button>
+      <div class="card">
+        <h3>Recursos existentes</h3>
+        <table>
+          <thead>
+            <tr><th>Título</th><th>Categoría</th><th>Tipo</th><th>Visibilidad</th><th>Acciones</th></tr>
+          </thead>
+          <tbody id="tablaRecursos"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyRecursos">Aún no hay recursos.</div>
       </div>
     </div>
-  `;
 
-  document.getElementById("btnCancelarReporteUsuario").addEventListener("click", () => { modal.innerHTML = ""; });
-  document.getElementById("btnEnviarReporteUsuario").addEventListener("click", async () => {
-    const select = document.getElementById("selectMotivoReporteUsuario");
-    const info = document.getElementById("inputInfoReporteUsuario");
-    const errorEl = document.getElementById("errorReporteUsuario");
-    const btn = document.getElementById("btnEnviarReporteUsuario");
+    <!-- TAB: Usuarios pendientes -->
+    <div id="tabUsuarios" class="hidden">
+      <div class="card">
+        <h3>Solicitudes pendientes de aprobación</h3>
+        <table>
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaPendientes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyPendientes">No hay solicitudes pendientes.</div>
+      </div>
+    </div>
 
-    if (!select.value) {
-      errorEl.textContent = "Selecciona un motivo antes de enviar.";
-      errorEl.style.display = "block";
-      return;
-    }
+    <!-- TAB: Todos los usuarios -->
+    <div id="tabTodos" class="hidden">
+      <div class="card">
+        <h3>Todos los usuarios</h3>
+        <table>
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Saldo</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaTodos"></tbody>
+        </table>
+      </div>
+    </div>
 
-    btn.disabled = true;
-    btn.textContent = "Enviando...";
-    try {
-      await crearReporte({
-        reportanteUid: usuarioActual.uid,
-        reportanteNombre: usuarioActual.nombre,
-        objetivoTipo: TIPO_OBJETIVO.USUARIO,
-        objetivoId: perfilVisto.uid,
-        objetivoAutorUid: perfilVisto.uid,
-        objetivoAutorNombre: perfilVisto.nombre,
-        motivo: select.value,
-        infoAdicional: info.value.trim()
-      });
-      modal.innerHTML = "";
-      alert("Reporte enviado. Gracias por ayudar a mantener segura la comunidad.");
-    } catch (err) {
-      errorEl.textContent = err.message;
-      errorEl.style.display = "block";
-      btn.disabled = false;
-      btn.textContent = "Enviar reporte";
-    }
-  });
-}
+    <!-- TAB: Roles pendientes -->
+    <div id="tabRoles" class="hidden">
+      <div class="card">
+        <h3>Roles de perfil propuestos por usuarios</h3>
+        <table>
+          <thead><tr><th>Rol</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaRolesPendientes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyRoles">No hay roles pendientes de aprobación.</div>
+      </div>
+    </div>
 
-// ============ AMISTAD ============
+    <!-- TAB: Juegos pendientes -->
+    <div id="tabJuegos" class="hidden">
+      <div class="card">
+        <h3>Juegos subidos por usuarios (pendientes de aprobación)</h3>
+        <table>
+          <thead><tr><th>Juego</th><th>Autor</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaJuegosPendientes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyJuegosAdmin">No hay juegos pendientes de aprobación.</div>
+      </div>
+    </div>
 
-let estadoAmistadActual = null; // null | { id, estado, solicitadoPor }
+    <!-- TAB: Registro de moderación -->
+    <div id="tabRegistro" class="hidden">
+      <div class="card">
+        <h3>Registro de acciones de moderación</h3>
+        <table>
+          <thead><tr><th>Fecha</th><th>Admin</th><th>Acción</th><th>Detalle</th></tr></thead>
+          <tbody id="tablaLogs"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyLogs">Aún no hay acciones registradas.</div>
+      </div>
+    </div>
 
-async function actualizarBotonAmistad() {
-  btnAmistad.disabled = true;
-  btnAmistad.textContent = "Cargando...";
+    <!-- TAB: Tarjetas de regalo -->
+    <div id="tabTarjetas" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Crear tarjeta de regalo</h3>
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Monto</label>
+        <input type="number" id="montoNuevaTarjeta" placeholder="Ej. 100" min="1" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+        <button id="btnCrearTarjeta">Generar código</button>
+        <div id="codigoGeneradoBox" class="hidden" style="margin-top:14px; padding:14px; border-radius:var(--radius); background:rgba(76,175,125,0.1); border:1px solid var(--success); text-align:center;">
+          <div style="font-size:12px; color:var(--text-dim); margin-bottom:6px;">Código generado — compártelo con quien pagó:</div>
+          <div id="codigoGeneradoTexto" style="font-size:22px; font-weight:700; letter-spacing:0.05em; color:var(--success); font-family:monospace;"></div>
+        </div>
+      </div>
 
-  estadoAmistadActual = await obtenerEstadoAmistad(usuarioActual.uid, perfilVisto.uid);
+      <div class="card">
+        <h3 style="margin-top:0;">Todas las tarjetas</h3>
+        <table>
+          <thead><tr><th>Código</th><th>Monto</th><th>Estado</th><th>Canjeada por</th></tr></thead>
+          <tbody id="tablaTarjetas"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyTarjetas">Aún no has creado ninguna tarjeta.</div>
+      </div>
+    </div>
 
-  if (!estadoAmistadActual) {
-    btnAmistad.textContent = "➕ Enviar solicitud de amistad";
-    btnAmistad.disabled = false;
-  } else if (estadoAmistadActual.estado === "pendiente") {
-    if (estadoAmistadActual.solicitadoPor === usuarioActual.uid) {
-      btnAmistad.textContent = "⏳ Solicitud enviada (cancelar)";
-    } else {
-      btnAmistad.textContent = "✅ Aceptar solicitud de amistad";
-    }
-    btnAmistad.disabled = false;
-  } else if (estadoAmistadActual.estado === "aceptada") {
-    btnAmistad.textContent = "👥 Ya son amigos (quitar)";
-    btnAmistad.disabled = false;
-  }
-}
+    <!-- TAB: Novedades / registro de actualizaciones -->
+    <div id="tabNovedades" class="hidden">
+      <div class="card">
+        <h3 id="novedadFormTitulo" style="margin-top:0;">Publicar novedad</h3>
+        <input type="hidden" id="novedadEditId">
 
-btnAmistad.addEventListener("click", async () => {
-  if (!perfilVisto) return;
-  btnAmistad.disabled = true;
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Tipo</label>
+        <select id="novedadTipo" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+          <option value="nueva_funcion">✨ Nueva función</option>
+          <option value="mejora" selected>⚙️ Mejora</option>
+          <option value="arreglo">🛠️ Arreglo</option>
+        </select>
 
-  try {
-    if (!estadoAmistadActual) {
-      // Sin relación: enviar solicitud
-      await enviarSolicitudAmistad(usuarioActual.uid, usuarioActual.nombre, perfilVisto.uid, perfilVisto.nombre);
-    } else if (estadoAmistadActual.estado === "pendiente" && estadoAmistadActual.solicitadoPor === usuarioActual.uid) {
-      // Yo la envié: cancelarla
-      await eliminarAmistad(estadoAmistadActual.id);
-    } else if (estadoAmistadActual.estado === "pendiente") {
-      // El otro la envió: aceptarla
-      await aceptarSolicitudAmistad(estadoAmistadActual.id, usuarioActual.uid, usuarioActual.nombre, perfilVisto.uid, perfilVisto.nombre);
-    } else if (estadoAmistadActual.estado === "aceptada") {
-      // Ya son amigos: quitar amistad (con confirmación)
-      if (!confirm("¿Quitar a " + perfilVisto.nombre + " de tus amigos?")) {
-        btnAmistad.disabled = false;
-        return;
-      }
-      await eliminarAmistad(estadoAmistadActual.id);
-    }
-    await actualizarBotonAmistad();
-  } catch (err) {
-    alert("Error: " + err.message);
-    btnAmistad.disabled = false;
-  }
-});
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Título</label>
+        <input type="text" id="novedadTitulo" placeholder="Ej. Nuevo sistema de tarjetas de regalo" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
 
-btnVolverBusqueda.addEventListener("click", () => {
-  perfilCard.classList.add("hidden");
-  buscadorCard.classList.remove("hidden");
-  perfilVisto = null;
-});
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Descripción (opcional)</label>
+        <textarea id="novedadDescripcion" placeholder="Explica brevemente qué cambió o qué pueden hacer ahora los usuarios" style="width:100%; min-height:80px; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; font-family:inherit; margin-bottom:10px;"></textarea>
 
-// ============ CHATEAR DESDE EL PERFIL ============
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Versión (opcional)</label>
+        <input type="text" id="novedadVersion" placeholder="Ej. v2.4" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
 
-btnChatearDesdeAqui.addEventListener("click", async () => {
-  if (!perfilVisto) return;
-  btnChatearDesdeAqui.disabled = true;
+        <div style="display:flex; gap:8px;">
+          <button id="btnPublicarNovedad">Publicar</button>
+          <button class="secondary hidden" id="btnCancelarEdicionNovedad">Cancelar edición</button>
+        </div>
+        <div class="msg" id="msgNovedad" style="display:none; margin-top:10px;"></div>
+      </div>
 
-  try {
-    // Busca si ya existe un chat privado entre ambos
-    const q = query(
-      collection(db, "chats"),
-      where("tipo", "==", "privado"),
-      where("miembros", "array-contains", usuarioActual.uid)
-    );
-    const snap = await getDocs(q);
-    let existente = null;
-    snap.forEach(docSnap => {
-      const c = docSnap.data();
-      if (c.miembros.includes(perfilVisto.uid)) existente = docSnap.id;
-    });
+      <div class="card">
+        <h3 style="margin-top:0;">Novedades publicadas</h3>
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Título</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaNovedades"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyNovedades">Aún no has publicado ninguna novedad.</div>
+      </div>
+    </div>
 
-    if (existente) {
-      location.href = "chat.html?abrir=" + existente;
-      return;
-    }
+    <!-- TAB: Reportes -->
+    <div id="tabReportes" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Reportes pendientes</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">Publicaciones, comentarios y usuarios reportados por la comunidad. Revisa y decide: borrar el contenido, suspender al usuario, o descartar el reporte.</p>
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Reportado</th><th>Reportante</th><th>Motivo</th><th>Info adicional</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaReportes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyReportes">No hay reportes pendientes. 🎉</div>
+      </div>
 
-    const nuevoChat = {
-      tipo: "privado",
-      miembros: [usuarioActual.uid, perfilVisto.uid],
-      nombresUsuarios: { [usuarioActual.uid]: usuarioActual.nombre, [perfilVisto.uid]: perfilVisto.nombre },
-      creadoPor: usuarioActual.uid,
-      fechaCreacion: serverTimestamp(),
-      ultimoMensaje: "",
-      ultimaActividad: serverTimestamp()
-    };
-    const ref = await addDoc(collection(db, "chats"), nuevoChat);
-    location.href = "chat.html?abrir=" + ref.id;
-  } catch (err) {
-    alert("Error al iniciar chat: " + err.message);
-    btnChatearDesdeAqui.disabled = false;
-  }
-});
+      <div class="card">
+        <h3 style="margin-top:0;">Historial de reportes resueltos</h3>
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Reportado</th><th>Motivo</th><th>Resolución</th><th>Admin</th></tr></thead>
+          <tbody id="tablaReportesResueltos"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyReportesResueltos">Aún no se ha resuelto ningún reporte.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Verificaciones -->
+    <div id="tabVerificaciones" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Otorgar verificación</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">
+          🥇 Dorada: de pago (el usuario también puede comprarla directo con su saldo Ox2 desde su billetera).<br>
+          ✅ Azul: gratis, a tu criterio (ej. cuenta con suficiente relevancia en la comunidad).
+        </p>
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Buscar usuario</label>
+        <input type="text" id="buscarUsuarioVerificar" placeholder="Nombre o @usuario..." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+        <div id="resultadosVerificar"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Usuarios verificados</h3>
+        <table>
+          <thead><tr><th>Usuario</th><th>Dorada</th><th>Azul</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaVerificados"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyVerificados">Todavía no hay usuarios verificados.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Modo mantenimiento -->
+    <div id="tabMantenimiento" class="hidden">
+      <div class="card">
+        <div id="estadoMantenimientoBox" style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:var(--radius); margin-bottom:18px;">
+          <span id="estadoMantenimientoIcono" style="font-size:20px;">✅</span>
+          <span id="estadoMantenimientoTexto" style="font-weight:600;">El sitio está funcionando normalmente</span>
+        </div>
+
+        <h3 style="margin-top:0;">Activar modo mantenimiento</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">Mientras esté activo, solo los administradores podrán usar el sitio. Los demás verán una pantalla informativa.</p>
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Motivo</label>
+        <input type="text" id="mantMotivo" placeholder="Ej. Arreglar bugs" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Horario (opcional)</label>
+        <input type="text" id="mantHorario" placeholder="Ej. De 3:00 PM a 5:00 PM" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
+
+        <div style="display:flex; gap:8px;">
+          <button class="danger" id="btnActivarMantenimiento">Activar mantenimiento</button>
+          <button class="success" id="btnDesactivarMantenimiento">Desactivar mantenimiento</button>
+        </div>
+        <div class="msg" id="msgMantenimiento" style="display:none; margin-top:10px;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+</div>
+
+<!-- Modal: gestionar recursos pagados de un usuario -->
+<div class="hidden" id="modalPagos" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50;">
+  <div class="card" style="max-width:420px; width:90%; max-height:80vh; overflow-y:auto;">
+    <h3 id="pagosUsuarioNombre">Recursos pagados</h3>
+    <p style="color:var(--text-dim); font-size:13px;">Marca los recursos de paga que este usuario ya pagó en efectivo.</p>
+    <div id="listaPagos"></div>
+    <div style="margin-top:14px; display:flex; gap:8px;">
+      <button id="btnGuardarPagos">Guardar</button>
+      <button class="secondary" id="btnCerrarPagos">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: suspender usuario -->
+<div class="hidden" id="modalSuspender" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50;">
+  <div class="card" style="max-width:420px; width:90%;">
+    <h3 id="suspenderUsuarioNombre">Suspender cuenta</h3>
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Motivo (se le mostrará al usuario)</label>
+    <textarea id="suspenderMotivo" placeholder="Ej. Lenguaje ofensivo repetido en el chat" style="width:100%; min-height:70px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; font-family:inherit; margin-bottom:10px;"></textarea>
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Duración</label>
+    <select id="suspenderDuracion" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
+      <option value="1">1 día</option>
+      <option value="3">3 días</option>
+      <option value="7">7 días</option>
+      <option value="30">30 días</option>
+      <option value="permanente">Permanente (hasta que la reactives)</option>
+    </select>
+    <div style="display:flex; gap:8px;">
+      <button class="danger" id="btnConfirmarSuspender" style="flex:1;">Suspender</button>
+      <button class="secondary" id="btnCancelarSuspender">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: dar/quitar saldo -->
+<div class="hidden" id="modalSaldo" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50;">
+  <div class="card" style="max-width:420px; width:90%;">
+    <h3 id="saldoUsuarioNombre">Gestionar saldo</h3>
+    <p style="font-size:13px; color:var(--text-dim);" id="saldoUsuarioActual">Saldo actual: $0</p>
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Monto</label>
+    <input type="number" id="saldoMonto" placeholder="Ej. 100" min="1" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Motivo (opcional)</label>
+    <input type="text" id="saldoMotivo" placeholder="Ej. Pago en efectivo recibido" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
+    <div style="display:flex; gap:8px;">
+      <button class="success" id="btnDarSaldo" style="flex:1;">Dar</button>
+      <button class="danger" id="btnQuitarSaldo" style="flex:1;">Quitar</button>
+      <button class="secondary" id="btnCerrarSaldo">Cancelar</button>
+    </div>
+    <div class="msg" id="msgSaldo" style="display:none; margin-top:10px;"></div>
+  </div>
+</div>
+
+<script type="module" src="admin.js"></script>
+</body>
+</html>
