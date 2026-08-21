@@ -3,557 +3,123 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Muro — OxygeNMedia</title>
+<title>Perfiles — OxygeNMedia</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#5b8def">
 <script src="tema-inline.js"></script>
-<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root {
     --bg: #0f1420; --card: #1a2233; --border: #2a3550; --accent: #5b8def;
     --accent-hover: #4a7ad9; --text: #e8ecf5; --text-dim: #8b96b0;
-    --success: #4caf7d; --danger: #e35d5d; --warn: #e0a941;
-    --radius: 14px; --card-shadow: none; --input-bg: #10182a;
+    --success: #4caf7d;
+    --radius: 14px;
+    --card-shadow: none;
+    --input-bg: #10182a;
     --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-weight-heading: 700;
   }
   * { box-sizing: border-box; }
-  html, body {
-    margin: 0; height: 100%; overflow: hidden;
-    font-family: var(--font-body); background: var(--bg); color: var(--text);
-    overscroll-behavior: none; transition: background-color 0.3s ease, color 0.3s ease;
+  body {
+    margin: 0;
+    font-family: var(--font-body);
+    background: var(--bg); color: var(--text); min-height: 100vh;
   }
-  h1, h2, h3 { font-family: var(--font-display); font-weight: var(--font-weight-heading); }
-  .app-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
-  .content-area { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
-
   header {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
   }
   header h1 { font-size: 17px; margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: var(--font-weight-heading); }
   button {
     font-family: var(--font-body);
-    background: var(--accent); color: white; border: none; padding: 9px 15px;
+    background: var(--accent); color: white; border: none; padding: 10px 16px;
     border-radius: var(--radius); font-size: 13px; cursor: pointer; font-weight: 600;
-    transition: background-color 0.2s ease, transform 0.1s ease;
   }
   button:hover { background: var(--accent-hover); }
-  button:active { transform: scale(0.97); }
   button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
-  button.icon-only { background: transparent; padding: 5px 8px; }
-  .container { max-width: 560px; margin: 0 auto; padding: 16px; }
+  button.secondary:hover { background: var(--card); }
+  .container { max-width: 560px; margin: 24px auto; padding: 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; }
 
-  .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
-  .tab-btn {
-    flex: 1; padding: 9px; border-radius: var(--radius); border: 1px solid var(--border);
-    background: transparent; color: var(--text-dim); font-size: 13px; font-weight: 600; cursor: pointer;
+  input {
+    width: 100%; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: var(--input-bg); color: var(--text); font-size: 14px;
   }
-  .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
-
-  .composer {
-    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: var(--card-shadow); padding: 16px; margin-bottom: 18px;
-  }
-  .composer textarea {
-    width: 100%; min-height: 70px; border: none; background: transparent; color: var(--text);
-    font-family: var(--font-body); font-size: 14px; resize: vertical; padding: 0; margin-bottom: 10px;
-  }
-  .composer textarea:focus { outline: none; }
-  .composer-extra { margin-top: 10px; }
-  .composer-extra input {
-    width: 100%; padding: 9px 11px; border-radius: var(--radius); border: 1px solid var(--border);
-    background: var(--input-bg); color: var(--text); font-size: 13px; margin-bottom: 8px; font-family: var(--font-body);
-  }
-  .composer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
-  .composer-tools { display: flex; gap: 6px; }
-  .composer-tools button { padding: 6px 10px; font-size: 12px; }
-
-  .cita-recurso-preview {
-    display: flex; justify-content: space-between; align-items: center;
-    background: var(--input-bg); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 8px 12px; font-size: 12px; margin-bottom: 8px;
-  }
-
-  .recurso-resultado {
-    padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border);
-    margin-bottom: 8px; cursor: pointer; font-size: 13px; transition: border-color 0.15s ease;
-  }
-  .recurso-resultado:hover { border-color: var(--accent); }
-  .recurso-resultado .titulo { font-weight: 600; margin-bottom: 2px; }
-  .recurso-resultado .meta { font-size: 11px; color: var(--text-dim); }
-
-  .post {
-    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: var(--card-shadow); padding: 16px; margin-bottom: 14px;
-  }
-  .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .post-avatar {
-    width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
-    background: var(--accent); display: flex; align-items: center; justify-content: center;
-    font-weight: 700; color: white; font-size: 14px;
-  }
-  .post-header .nombre { font-size: 13.5px; font-weight: 600; }
-  .post-header .fecha { font-size: 11px; color: var(--text-dim); }
-  .post-texto { font-size: 14px; line-height: 1.5; margin-bottom: 10px; white-space: pre-wrap; }
-  .post-imagen { width: 100%; border-radius: var(--radius); margin-bottom: 10px; max-height: 380px; object-fit: cover; }
-
-  .cita-recurso {
-    display: flex; align-items: center; gap: 8px;
-    border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
-    margin-bottom: 10px; text-decoration: none; color: var(--text); font-size: 12.5px;
-  }
-  .cita-recurso:hover { border-color: var(--accent); }
-
-  .post-actions { display: flex; gap: 16px; padding-top: 10px; border-top: 1px solid var(--border); }
-  .post-action {
-    display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-dim);
-    cursor: pointer; background: none; border: none; padding: 4px 6px; font-family: var(--font-body);
-  }
-  .post-action.liked { color: var(--danger); font-weight: 600; }
-  .post-action:hover { color: var(--text); }
-
-  .comentarios-box { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; display: none; }
-  .comentarios-box.open { display: block; }
-  .comentario-item { display: flex; gap: 8px; margin-bottom: 10px; font-size: 13px; }
-  .comentario-item .nombre { font-weight: 600; margin-right: 4px; }
-  .comentario-input-row { display: flex; gap: 8px; margin-top: 8px; }
-  .comentario-input-row input {
-    flex: 1; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
-    background: var(--input-bg); color: var(--text); font-size: 13px; font-family: var(--font-body);
-  }
-  .comentario-input-row button { padding: 8px 14px; font-size: 12px; border-radius: 999px; }
-
-  .empty { text-align: center; color: var(--text-dim); padding: 40px 20px; font-size: 13px; }
-  .hidden { display: none !important; }
-
-  .badge-verificado { width: 15px; height: 15px; margin-left: 3px; vertical-align: -2px; display: inline-block; }
-
-  /* Campanita de notificaciones (igual que en index.html) */
-  .bell-wrapper { position: relative; }
-  .bell-btn { width: 38px; height: 38px; font-size: 17px; display:flex; align-items:center; justify-content:center; padding:0; }
-  .bell-badge {
-    position: absolute; top: -4px; right: -4px;
-    background: var(--danger); color: white; font-size: 10px; font-weight: 700;
-    min-width: 17px; height: 17px; border-radius: 999px;
-    display: flex; align-items: center; justify-content: center; padding: 0 4px;
-    border: 2px solid var(--bg);
-  }
-  .notif-panel {
-    position: absolute; top: calc(100% + 8px); right: 0; width: 320px; max-width: 88vw;
-    max-height: 420px; overflow-y: auto; background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 80; display: none;
-  }
-  .notif-panel.open { display: block; }
-  .notif-panel-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600;
-  }
-  .notif-panel-header button { padding: 4px 8px; font-size: 11px; }
-  .notif-item {
-    padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; cursor: pointer;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .notif-item:last-child { border-bottom: none; }
-  .notif-item:hover { background: var(--input-bg); }
-  .notif-item.no-leida { background: rgba(91,141,239,0.06); }
-  .notif-item .notif-fecha { font-size: 11px; color: var(--text-dim); }
-  .notif-item .notif-actions { display: flex; gap: 6px; margin-top: 4px; }
-  .notif-item .notif-actions button { padding: 5px 10px; font-size: 12px; }
-  .notif-empty { padding: 30px 16px; text-align: center; color: var(--text-dim); font-size: 13px; }
-
-  /* Drawer (igual que en index.html) */
-  .drawer-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
-    z-index: 90; opacity: 0; pointer-events: none; transition: opacity 0.2s;
-  }
-  .drawer-overlay.open { opacity: 1; pointer-events: auto; }
-  .drawer {
-    position: fixed; top: 0; left: 0; bottom: 0; width: 280px; max-width: 82vw;
-    background: var(--card); border-right: 1px solid var(--border);
-    z-index: 91; transform: translateX(-100%); transition: transform 0.22s ease;
-    display: flex; flex-direction: column;
-  }
-  .drawer.open { transform: translateX(0); }
-  .drawer-profile { padding: 20px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
-  .drawer-avatar {
-    width: 44px; height: 44px; border-radius: 50%; object-fit: cover;
-    background: var(--accent); display: flex; align-items: center; justify-content: center;
-    font-weight: 700; color: white; flex-shrink: 0; font-size: 16px;
-  }
-  .drawer-profile .nombre { font-weight: 600; font-size: 14px; }
-  .drawer-profile .username { font-size: 12px; color: var(--text-dim); }
-  .drawer-links { flex: 1; overflow-y: auto; padding: 8px 0; }
-  .drawer-link {
+  .search-result {
     display: flex; align-items: center; gap: 12px;
-    padding: 13px 18px; color: var(--text); text-decoration: none; font-size: 14px;
-    cursor: pointer; border: none; background: none; width: 100%; text-align: left;
+    padding: 10px 12px; border-radius: var(--radius); margin-top: 8px; background: var(--input-bg);
+    cursor: pointer;
   }
-  .drawer-link:hover { background: var(--input-bg); }
-  .drawer-link .icon { font-size: 17px; width: 22px; text-align: center; }
-  .drawer-section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); padding: 14px 18px 6px; }
-  .drawer-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
-  .drawer-footer button { width: 100%; }
-  .tema-chip {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 10px; border-radius: var(--radius); border: 1px solid var(--border);
-    background: transparent; cursor: pointer; width: 100%; text-align: left;
-    font-size: 13px; color: var(--text); transition: all 0.15s ease;
+  .search-result:hover { background: #17223a; }
+  .search-avatar {
+    width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: white; flex-shrink: 0;
   }
-  .tema-chip:hover { background: rgba(255,255,255,0.05); }
-  .tema-chip.activo { border-color: var(--accent); background: rgba(91,141,239,0.08); }
-  .tema-chip .tema-swatch { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; }
-  .tema-chip .tema-nombre { font-weight: 600; }
-  .tema-chip .tema-check { margin-left: auto; opacity: 0; color: var(--accent); }
-  .tema-chip.activo .tema-check { opacity: 1; }
+  .search-info .nombre { font-size: 14px; font-weight: 600; }
+  .search-info .username { font-size: 12px; color: var(--text-dim); }
 
-  /* Recursos (igual que en index.html) */
-  .resource-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
-  .resource-card h3 { margin: 0 0 8px 0; font-size: 16px; }
-  .resource-card p { color: var(--text-dim); font-size: 13px; margin: 0 0 12px 0; }
-  .badge { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 999px; margin-right: 6px; margin-bottom: 8px; }
-  .badge.gratis { background: rgba(76, 175, 125, 0.15); color: var(--success); }
-  .badge.pago { background: rgba(224, 169, 65, 0.15); color: var(--warn); }
-  .badge.categoria { background: rgba(91, 141, 239, 0.15); color: var(--accent); }
+  .profile-header { text-align: center; margin-bottom: 16px; }
+  .avatar-big {
+    width: 100px; height: 100px; border-radius: 50%; object-fit: cover;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-size: 38px; font-weight: 700; color: white; margin: 0 auto 14px;
+    border: 3px solid var(--border);
+  }
+  .profile-header h2 { margin: 0 0 2px 0; }
+  .profile-header .username { color: var(--accent); font-size: 14px; }
+
+  .roles-list { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 14px 0; }
+  .role-chip {
+    background: rgba(91,141,239,0.15); color: var(--accent);
+    padding: 5px 12px; border-radius: 999px; font-size: 12px;
+  }
+  .descripcion-box {
+    background: var(--input-bg); border-radius: var(--radius); padding: 14px; font-size: 14px;
+    color: var(--text); white-space: pre-wrap; margin-top: 10px;
+  }
+  .hidden { display: none !important; }
+  .empty { text-align: center; color: var(--text-dim); padding: 20px; font-size: 13px; }
 </style>
 </head>
 <body>
 
-<div class="app-shell">
-  <header>
-    <h1>🌐 OxygeNMedia</h1>
-    <div style="display:flex; align-items:center; gap:10px;">
-      <div class="bell-wrapper hidden" id="bellWrapper">
-        <button class="bell-btn icon-only secondary" id="btnBell">🔔<span class="bell-badge hidden" id="bellBadge">0</span></button>
-        <div class="notif-panel" id="notifPanel">
-          <div class="notif-panel-header">
-            <span>Notificaciones</span>
-            <button class="secondary" id="btnMarcarTodasLeidas">Marcar todas leídas</button>
-          </div>
-          <div id="notifList"></div>
-        </div>
-      </div>
-      <button class="hamburger-btn secondary icon-only" id="btnAbrirDrawer">☰</button>
+<header>
+  <h1>🔎 Perfiles</h1>
+  <a href="index.html"><button class="secondary">Volver al sitio</button></a>
+</header>
+
+<div class="container">
+  <div class="card" id="buscadorCard">
+    <h3 style="margin-top:0;">Buscar por nombre o @usuario</h3>
+    <input type="text" id="buscarUsername" placeholder="Nombre o @usuario...">
+    <div id="resultadosBusqueda"></div>
+  </div>
+
+  <div class="card hidden" id="perfilCard">
+    <button class="secondary" id="btnVolverBusqueda" style="margin-bottom:14px;">← Volver a buscar</button>
+    <div class="profile-header">
+      <img id="verAvatarImg" class="avatar-big hidden">
+      <div id="verAvatarInicial" class="avatar-big"></div>
+      <h2 id="verNombre"></h2><span id="verInsignias"></span>
+      <div class="username" id="verUsername"></div>
+      <div class="seguidores-count" id="verSeguidores" style="font-size:12.5px; color:var(--text-dim); margin-top:2px;"></div>
     </div>
-  </header>
-
-  <div class="content-area">
-    <div class="container">
-
-      <div class="tabs" id="tabsMain">
-        <button class="tab-btn active" data-vista="muro">🌐 Muro</button>
-        <button class="tab-btn" data-vista="recursos">📄 Recursos</button>
-      </div>
-
-      <div id="vistaMuro">
-
-      <div class="composer">
-        <textarea id="inputTexto" placeholder="¿Qué está pasando?"></textarea>
-        <div class="composer-extra hidden" id="extraImagen">
-          <input type="text" id="inputImagenURL" placeholder="https://i.imgur.com/ejemplo.jpg">
-          <img id="previewImagen" class="hidden" style="width:100%; max-height:200px; object-fit:cover; border-radius:var(--radius); margin-bottom:8px;">
-        </div>
-        <div id="citaPreview"></div>
-        <div class="composer-actions">
-          <div class="composer-tools">
-            <button class="secondary" id="btnToggleImagen">🖼️ Imagen</button>
-            <button class="secondary" id="btnCitarRecurso">📎 Citar recurso</button>
-          </div>
-          <button id="btnPublicar">Publicar</button>
-        </div>
-      </div>
-
-      <div class="tabs">
-        <button class="tab-btn active" data-feed="general">Todos</button>
-        <button class="tab-btn" data-feed="amigos">Solo amigos</button>
-      </div>
-
-      <div id="listaFeed">Cargando...</div>
-      <div class="empty hidden" id="emptyFeed">No hay publicaciones todavía. ¡Sé el primero!</div>
-      <button class="secondary hidden" id="btnCargarMas" style="width:100%; margin-top:6px;">Cargar más</button>
-
-      </div>
-
-      <div id="vistaRecursos" class="hidden">
-        <input type="text" id="buscarRecurso" placeholder="🔍 Buscar por título o descripción..." style="width:100%; padding:12px 14px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
-        <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
-          <select id="filtroCategoria" style="width:auto;">
-            <option value="">Todas las categorías</option>
-          </select>
-          <select id="filtroTipo" style="width:auto;">
-            <option value="">Gratis y de paga</option>
-            <option value="gratis">Solo gratis</option>
-            <option value="pago">Solo de paga</option>
-          </select>
-          <button id="btnPublicarRecurso" class="hidden">+ Publicar recurso</button>
-        </div>
-        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px;" id="resourceGrid"></div>
-        <div class="empty hidden" id="emptyState">No hay recursos disponibles todavía.</div>
-      </div>
-
-    </div>
+    <div class="roles-list" id="verRoles"></div>
+    <div class="descripcion-box hidden" id="verDescripcion"></div>
+    <button id="btnSeguir" class="secondary" style="width:100%; margin-top:18px;"></button>
+    <button id="btnAmistad" class="secondary" style="width:100%; margin-top:10px;"></button>
+    <button id="btnChatearDesdeAqui" style="width:100%; margin-top:10px;">💬 Enviar mensaje</button>
+    <button id="btnReportarUsuario" class="secondary" style="width:100%; margin-top:10px; color:var(--danger);">🚩 Reportar usuario</button>
   </div>
 </div>
 
-<!-- Drawer / menú lateral (igual que en index.html) -->
-<div class="drawer-overlay" id="drawerOverlay"></div>
-<div class="drawer" id="drawer">
-  <div class="drawer-profile" id="drawerProfile"></div>
-  <div class="drawer-links" id="drawerLinks"></div>
-  <div class="drawer-section-title">Notificaciones</div>
-  <div style="padding: 0 14px 14px;">
-    <button class="secondary" id="btnActivarPush" style="width:100%;">🔔 Activar notificaciones push</button>
-  </div>
-  <div class="drawer-section-title">Apariencia</div>
-  <div id="temaSelector" style="padding: 0 14px 14px; display: flex; flex-direction: column; gap: 6px;"></div>
-  <div class="drawer-footer">
-    <button class="secondary" id="btnLogoutDrawer">Cerrar sesión</button>
-  </div>
-</div>
+<style>
+  #verInsignias { margin-left: 4px; vertical-align: middle; }
+  #verInsignias .badge-verificado { width: 18px; height: 18px; }
+</style>
 
-<!-- Modal: buscar recurso para citar -->
-<div class="modal-overlay hidden" id="modalCitarRecurso" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:60; padding:16px;">
-  <div style="background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; max-width:440px; width:100%; max-height:75vh; overflow-y:auto;">
-    <h3 style="margin-top:0;">Citar un recurso</h3>
-    <input type="text" id="buscarRecursoCitar" placeholder="Buscar por título..." style="width:100%; padding:10px 12px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:12px; font-family:var(--font-body);">
-    <div id="resultadosCitarRecurso"></div>
-    <button class="secondary" id="btnCerrarModalCitar" style="width:100%; margin-top:12px;">Cancelar</button>
-  </div>
-</div>
-
-<script type="module">
-import { observarSesion, cerrarSesion, cuentaBloqueada, verificarMantenimiento } from "./auth.js";
-import { cargarRecursos } from "./app.js";
-import { escucharNotificaciones, marcarNotificacionLeida, marcarTodasLeidas, borrarNotificacion } from "./notificaciones.js";
-import { aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
-import { TEMAS, aplicarTema, obtenerTemaGuardado } from "./temas.js";
-import { inicializarPush, pedirPermisoYVincular, tienePermisoPush } from "./push.js";
-
-let perfilGlobal = null;
-let uidGlobal = null;
-let notificacionesActuales = [];
-let unsubscribeNotifs = null;
-
-const btnAbrirDrawer = document.getElementById("btnAbrirDrawer");
-const drawer = document.getElementById("drawer");
-const drawerOverlay = document.getElementById("drawerOverlay");
-const drawerProfile = document.getElementById("drawerProfile");
-const drawerLinks = document.getElementById("drawerLinks");
-const btnPublicarRecurso = document.getElementById("btnPublicarRecurso");
-const bellWrapper = document.getElementById("bellWrapper");
-const btnBell = document.getElementById("btnBell");
-const bellBadge = document.getElementById("bellBadge");
-const notifPanel = document.getElementById("notifPanel");
-const notifList = document.getElementById("notifList");
-const btnMarcarTodasLeidas = document.getElementById("btnMarcarTodasLeidas");
-const btnActivarPush = document.getElementById("btnActivarPush");
-
-// ============ SESIÓN: si no hay cuenta válida, de regreso a index.html ============
-observarSesion((user, perfil) => {
-  if (!user || !perfil) { location.href = "index.html"; return; }
-
-  const estado = cuentaBloqueada(perfil);
-  if (estado.bloqueada) { location.href = "index.html"; return; }
-
-  if (perfil.rol !== "admin") {
-    verificarMantenimiento().then(estadoMant => {
-      if (estadoMant.activo) { location.href = "index.html"; return; }
-      continuarCarga(user, perfil);
-    });
-    return;
-  }
-  continuarCarga(user, perfil);
-});
-
-function continuarCarga(user, perfil) {
-  perfilGlobal = perfil;
-  uidGlobal = user.uid;
-  construirDrawer(perfil);
-  inicializarPush();
-  actualizarEstadoBotonPush();
-
-  if (!unsubscribeNotifs) {
-    unsubscribeNotifs = escucharNotificaciones(user.uid, (lista) => {
-      notificacionesActuales = lista;
-      renderNotificaciones();
-    });
-  }
-
-  if (perfil.rol === "admin" || true) btnPublicarRecurso.classList.remove("hidden");
-  cargarRecursos(perfil, uidGlobal);
-}
-
-// ============ TABS: Muro / Recursos ============
-document.querySelectorAll("#tabsMain .tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("#tabsMain .tab-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById("vistaMuro").classList.toggle("hidden", btn.dataset.vista !== "muro");
-    document.getElementById("vistaRecursos").classList.toggle("hidden", btn.dataset.vista !== "recursos");
-  });
-});
-
-// ============ DRAWER ============
-function abrirDrawer() { drawer.classList.add("open"); drawerOverlay.classList.add("open"); }
-function cerrarDrawer() { drawer.classList.remove("open"); drawerOverlay.classList.remove("open"); }
-btnAbrirDrawer.addEventListener("click", abrirDrawer);
-drawerOverlay.addEventListener("click", cerrarDrawer);
-document.getElementById("btnLogoutDrawer").addEventListener("click", cerrarSesion);
-
-function construirDrawer(perfil) {
-  const inicial = (perfil.nombre || "?")[0].toUpperCase();
-  drawerProfile.innerHTML = `
-    ${perfil.fotoURL
-      ? `<img class="drawer-avatar" src="${perfil.fotoURL}" onerror="this.outerHTML='<div class=&quot;drawer-avatar&quot;>${inicial}</div>'">`
-      : `<div class="drawer-avatar">${inicial}</div>`}
-    <div>
-      <div class="nombre">${perfil.nombre}</div>
-      <div class="username">${perfil.username ? "@" + perfil.username : ""}</div>
-    </div>
-  `;
-
-  const links = [
-    { href: "novedades.html", icon: "📣", label: "Novedades" },
-    { href: "billetera.html", icon: "💰", imgIcon: "dinero-32.png", label: `Mi billetera ($${perfil.saldo || 0})` },
-    { href: "comprar-giftcard.html", icon: "🎁", label: "Comprar tarjetas de regalo" },
-    { href: "juegos.html", icon: "🎮", label: "Juegos" },
-    { href: "mis-recursos.html", icon: "📄", label: "Mis recursos" },
-    { href: "perfil.html", icon: "👤", label: "Mi perfil" },
-    { href: "amigos.html", icon: "👥", label: "Mis amigos" },
-    { href: "solicitudes.html", icon: "🤝", label: "Solicitudes de amistad" },
-    { href: "ver-perfil.html", icon: "🔎", label: "Buscar perfiles" },
-    { href: "chat.html", icon: "💬", label: "Chat" },
-    { href: "sugerencias.html", icon: "💡", label: "Sugerencias" },
-  ];
-
-  let html = links.map(l => `<a class="drawer-link" href="${l.href}">${l.imgIcon ? `<img src="${l.imgIcon}" class="icon" style="width:17px;height:17px;object-fit:contain;">` : `<span class="icon">${l.icon}</span>`}${l.label}</a>`).join("");
-
-  if (perfil.rol === "admin") {
-    html += `<div class="drawer-section-title">Administración</div>`;
-    html += `<a class="drawer-link" href="admin.html"><span class="icon">🛠️</span>Panel Admin</a>`;
-  }
-
-  drawerLinks.innerHTML = html;
-  renderSelectorTemas();
-}
-
-const temaSelector = document.getElementById("temaSelector");
-function renderSelectorTemas() {
-  const temaActivo = obtenerTemaGuardado();
-  temaSelector.innerHTML = Object.entries(TEMAS).map(([id, t]) => `
-    <button class="tema-chip ${id === temaActivo ? "activo" : ""}" data-tema="${id}" type="button">
-      <span class="tema-swatch" style="background:${t.vars["--bg"]}; border:1px solid ${t.vars["--border"]};">${t.emoji}</span>
-      <span class="tema-nombre">${t.nombre}</span>
-      <span class="tema-check">✓</span>
-    </button>
-  `).join("");
-  temaSelector.querySelectorAll("[data-tema]").forEach(btn => {
-    btn.addEventListener("click", () => { aplicarTema(btn.dataset.tema); renderSelectorTemas(); });
-  });
-}
-
-// ============ NOTIFICACIONES PUSH ============
-btnActivarPush.addEventListener("click", async () => {
-  if (!uidGlobal) return;
-  btnActivarPush.textContent = "Activando...";
-  btnActivarPush.disabled = true;
-  const permitido = await pedirPermisoYVincular(uidGlobal);
-  if (permitido) {
-    btnActivarPush.textContent = "🔔 Notificaciones activadas ✓";
-  } else {
-    btnActivarPush.textContent = "🔔 Activar notificaciones push";
-    alert("No se pudo activar. Es posible que hayas bloqueado los permisos de notificación para este sitio en la configuración de tu navegador.");
-  }
-  btnActivarPush.disabled = false;
-});
-async function actualizarEstadoBotonPush() {
-  try {
-    const yaActivo = await tienePermisoPush();
-    if (yaActivo) btnActivarPush.textContent = "🔔 Notificaciones activadas ✓";
-  } catch {}
-}
-
-// ============ CAMPANITA ============
-bellWrapper.classList.remove("hidden");
-btnBell.addEventListener("click", () => notifPanel.classList.toggle("open"));
-document.addEventListener("click", (e) => {
-  if (!bellWrapper.contains(e.target)) notifPanel.classList.remove("open");
-});
-
-function tiempoRelativo(fecha) {
-  if (!fecha) return "";
-  const segundos = Math.floor((Date.now() - fecha.toDate().getTime()) / 1000);
-  if (segundos < 60) return "ahora";
-  if (segundos < 3600) return Math.floor(segundos / 60) + " min";
-  if (segundos < 86400) return Math.floor(segundos / 3600) + " h";
-  return Math.floor(segundos / 86400) + " d";
-}
-
-function renderNotificaciones() {
-  const noLeidas = notificacionesActuales.filter(n => !n.leida).length;
-  bellBadge.classList.toggle("hidden", noLeidas === 0);
-  if (noLeidas > 0) bellBadge.textContent = noLeidas > 9 ? "9+" : noLeidas;
-
-  if (notificacionesActuales.length === 0) {
-    notifList.innerHTML = `<div class="notif-empty">No tienes notificaciones.</div>`;
-    return;
-  }
-
-  notifList.innerHTML = notificacionesActuales.map(n => {
-    let acciones = "";
-    if (n.tipo === "solicitud_amistad") {
-      acciones = `
-        <div class="notif-actions">
-          <button data-aceptar-amistad="${n.id}" data-amistad-id="${n.dataExtra?.amistadId || ''}" data-de-uid="${n.deUid}" data-de-nombre="${n.deNombre}">Aceptar</button>
-          <button class="secondary" data-rechazar-amistad="${n.id}" data-amistad-id="${n.dataExtra?.amistadId || ''}">Rechazar</button>
-        </div>`;
-    }
-    return `
-      <div class="notif-item ${n.leida ? "" : "no-leida"}" data-notif-id="${n.id}">
-        <span class="notif-texto">${n.texto}</span>
-        <span class="notif-fecha">${tiempoRelativo(n.fecha)}</span>
-        ${acciones}
-      </div>
-    `;
-  }).join("");
-
-  notifList.querySelectorAll(".notif-item").forEach(item => {
-    item.addEventListener("click", (e) => {
-      if (e.target.closest("button")) return;
-      marcarNotificacionLeida(item.dataset.notifId);
-    });
-  });
-  notifList.querySelectorAll("[data-aceptar-amistad]").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (!btn.dataset.amistadId) return;
-      await aceptarSolicitudAmistad(btn.dataset.amistadId, uidGlobal, perfilGlobal.nombre, btn.dataset.deUid, btn.dataset.deNombre);
-      await marcarNotificacionLeida(btn.dataset.aceptarAmistad);
-    });
-  });
-  notifList.querySelectorAll("[data-rechazar-amistad]").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (btn.dataset.amistadId) await eliminarAmistad(btn.dataset.amistadId);
-      await borrarNotificacion(btn.dataset.rechazarAmistad);
-    });
-  });
-}
-
-btnMarcarTodasLeidas.addEventListener("click", () => marcarTodasLeidas(notificacionesActuales));
-
-btnPublicarRecurso.addEventListener("click", () => { location.href = "publicar-recurso.html"; });
-</script>
-
-<script type="module" src="muro-app.js"></script>
-
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("service-worker.js").catch(() => {});
-    });
-  }
-</script>
+<script type="module" src="ver-perfil.js"></script>
 </body>
 </html>
