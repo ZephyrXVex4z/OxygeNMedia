@@ -114,17 +114,19 @@ export async function adminOtorgarVerificacionAzul(adminUid, adminNombre, objeti
 // el mismo campo que ya usa todo el proyecto (admin.js, muro-app.js, chat.js, etc.) para
 // dar permisos. Así nunca puede desincronizarse — a quien se le da/quita rol de admin
 // automáticamente gana/pierde la insignia, sin tocar nada más.
+// Usa los PNG del set de íconos (admin-32.png, verificado-dorado-32.png, etc., en la
+// raíz del proyecto) en vez de emojis, para que se vea igual en todos los dispositivos.
 export function insigniaVerificado(perfil) {
   if (!perfil) return "";
   let html = "";
   if (perfil.rol === "admin") {
-    html += `<span class="badge-verificado admin" title="Administrador de OxygeNMedia">🛡️</span>`;
+    html += `<img src="admin-32.png" class="badge-verificado admin" alt="Administrador" title="Administrador de OxygeNMedia">`;
   }
   if (perfil.verificadoDorado) {
-    html += `<span class="badge-verificado dorado" title="Verificado dorado">🥇</span>`;
+    html += `<img src="verificado-dorado-32.png" class="badge-verificado dorado" alt="Verificado dorado" title="Verificado dorado">`;
   }
   if (perfil.verificadoAzul) {
-    html += `<span class="badge-verificado azul" title="Verificado azul">✅</span>`;
+    html += `<img src="verificado-azul-32.png" class="badge-verificado azul" alt="Verificado azul" title="Verificado azul">`;
   }
   return html;
 }
