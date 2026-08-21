@@ -434,6 +434,54 @@ service cloud.firestore {
       allow create, update, delete: if esAdminUsuario();
     }
 
+    match /seguidores/{relacionId} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
+      // Cualquier usuario aprobado puede leer relaciones de seguimiento (para pintar
+      // listas de seguidores/siguiendo y saber si ya sigue a alguien)
+      allow read: if esAprobadoUsuario() || esAdminUsuario();
+
+      // Solo puedes crear una relación donde TÚ eres el seguidor (no puedes hacer
+      // que alguien más siga a otro usuario en su nombre)
+      allow create: if esAprobadoUsuario() &&
+                      request.resource.data.seguidorUid == request.auth.uid &&
+                      request.resource.data.seguidoUid != request.auth.uid;
+
+      // Solo puedes borrar tu propia relación de seguimiento (dejar de seguir)
+      allow delete: if esAprobadoUsuario() && resource.data.seguidorUid == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /reportes/{reporteId} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
+      // Solo el admin puede leer los reportes (nadie más ve quién reportó qué)
+      allow read: if esAdminUsuario();
+
+      // Cualquier usuario aprobado puede crear un reporte, siempre que figure como
+      // su propio reportante y quede en estado "pendiente" (no puede auto-resolverse)
+      allow create: if esAprobadoUsuario() &&
+                      request.resource.data.reportanteUid == request.auth.uid &&
+                      request.resource.data.estado == "pendiente";
+
+      // Solo el admin puede actualizar (resolver/descartar) o borrar reportes
+      allow update, delete: if esAdminUsuario();
+    }
+
     match /configuracion/{docId} {
       function esAdminUsuario() {
         return request.auth != null &&
