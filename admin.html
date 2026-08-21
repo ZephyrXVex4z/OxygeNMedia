@@ -145,6 +145,8 @@
     <div class="tab" data-tab="registro">Registro</div>
     <div class="tab" data-tab="tarjetas">Tarjetas de regalo</div>
     <div class="tab" data-tab="novedades">Novedades</div>
+    <div class="tab" data-tab="reportes">Reportes</div>
+    <div class="tab" data-tab="verificaciones">Verificaciones</div>
     <div class="tab" data-tab="mantenimiento">Mantenimiento</div>
   </div>
 
@@ -331,6 +333,51 @@
           <tbody id="tablaNovedades"></tbody>
         </table>
         <div class="empty hidden" id="emptyNovedades">Aún no has publicado ninguna novedad.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Reportes -->
+    <div id="tabReportes" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Reportes pendientes</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">Publicaciones, comentarios y usuarios reportados por la comunidad. Revisa y decide: borrar el contenido, suspender al usuario, o descartar el reporte.</p>
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Reportado</th><th>Reportante</th><th>Motivo</th><th>Info adicional</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaReportes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyReportes">No hay reportes pendientes. 🎉</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Historial de reportes resueltos</h3>
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Reportado</th><th>Motivo</th><th>Resolución</th><th>Admin</th></tr></thead>
+          <tbody id="tablaReportesResueltos"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyReportesResueltos">Aún no se ha resuelto ningún reporte.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Verificaciones -->
+    <div id="tabVerificaciones" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Otorgar verificación</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">
+          🥇 Dorada: de pago (el usuario también puede comprarla directo con su saldo Ox2 desde su billetera).<br>
+          ✅ Azul: gratis, a tu criterio (ej. cuenta con suficiente relevancia en la comunidad).
+        </p>
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Buscar usuario</label>
+        <input type="text" id="buscarUsuarioVerificar" placeholder="Nombre o @usuario..." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+        <div id="resultadosVerificar"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Usuarios verificados</h3>
+        <table>
+          <thead><tr><th>Usuario</th><th>Dorada</th><th>Azul</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaVerificados"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyVerificados">Todavía no hay usuarios verificados.</div>
       </div>
     </div>
 
