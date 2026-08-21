@@ -199,7 +199,7 @@ async function cargarRecursos() {
       <td><span class="badge ${r.esPublico ? "publico" : "privado"}">${r.esPublico ? "Público" : "Privado"}</span> ${!r.visible ? "<span class='badge privado'>Oculto</span>" : ""}</td>
       <td class="row-actions">
         <button class="secondary" data-edit="${docSnap.id}">Editar</button>
-        <button class="danger" data-del="${docSnap.id}">Borrar</button>
+        <button class="danger" data-del="${docSnap.id}"><img src="borrar-32.png" class="icon-inline-sm-admin" alt=""> Borrar</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -276,8 +276,8 @@ async function cargarPendientes() {
       <td>${u.nombre}</td>
       <td>${u.email}</td>
       <td class="row-actions">
-        <button class="success" data-approve="${docSnap.id}">Aprobar</button>
-        <button class="danger" data-reject="${docSnap.id}">Rechazar</button>
+        <button class="success" data-approve="${docSnap.id}"><img src="aprobar-32.png" class="icon-inline-sm-admin" alt=""> Aprobar</button>
+        <button class="danger" data-reject="${docSnap.id}"><img src="rechazar-32.png" class="icon-inline-sm-admin" alt=""> Rechazar</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -328,9 +328,9 @@ async function cargarTodos() {
           ? `<button class="secondary" data-makeadmin="${docSnap.id}">Hacer admin</button>`
           : ""}
         ${estaSuspendido
-          ? `<button class="success" data-reactivar="${docSnap.id}" data-nombre="${u.nombre}">Reactivar</button>`
-          : `<button class="danger" data-suspender="${docSnap.id}" data-nombre="${u.nombre}">Suspender</button>`}
-        <button class="danger" data-deluser="${docSnap.id}">Borrar</button>
+          ? `<button class="success" data-reactivar="${docSnap.id}" data-nombre="${u.nombre}"><img src="aprobar-32.png" class="icon-inline-sm-admin" alt=""> Reactivar</button>`
+          : `<button class="danger" data-suspender="${docSnap.id}" data-nombre="${u.nombre}"><img src="suspender-32.png" class="icon-inline-sm-admin" alt=""> Suspender</button>`}
+        <button class="danger" data-deluser="${docSnap.id}"><img src="borrar-32.png" class="icon-inline-sm-admin" alt=""> Borrar</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -554,8 +554,8 @@ async function cargarRolesPendientes() {
     tr.innerHTML = `
       <td>${r.nombre}</td>
       <td class="row-actions">
-        <button class="success" data-approve-rol="${docSnap.id}">Aprobar</button>
-        <button class="danger" data-reject-rol="${docSnap.id}">Rechazar</button>
+        <button class="success" data-approve-rol="${docSnap.id}"><img src="aprobar-32.png" class="icon-inline-sm-admin" alt=""> Aprobar</button>
+        <button class="danger" data-reject-rol="${docSnap.id}"><img src="rechazar-32.png" class="icon-inline-sm-admin" alt=""> Rechazar</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -599,8 +599,8 @@ async function cargarJuegosPendientesAdmin() {
       <td>${j.subidoPorNombre}</td>
       <td class="row-actions">
         <button class="secondary" data-probar-juego="${docSnap.id}">Probar</button>
-        <button class="success" data-approve-juego="${docSnap.id}">Aprobar</button>
-        <button class="danger" data-reject-juego="${docSnap.id}">Rechazar</button>
+        <button class="success" data-approve-juego="${docSnap.id}"><img src="aprobar-32.png" class="icon-inline-sm-admin" alt=""> Aprobar</button>
+        <button class="danger" data-reject-juego="${docSnap.id}"><img src="rechazar-32.png" class="icon-inline-sm-admin" alt=""> Rechazar</button>
       </td>
     `;
     tbody.appendChild(tr);
