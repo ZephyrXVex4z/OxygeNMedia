@@ -392,64 +392,18 @@
       </div>
     </div>
 
-    <!-- Vista: Recursos (usuarios aprobados) -->
-    <div class="main-content hidden" id="resourcesView">
-      <input type="text" id="buscarRecurso" placeholder="🔍 Buscar por título o descripción..." style="width:100%; padding:12px 14px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
-      <div class="filters">
-        <select id="filtroCategoria">
-          <option value="">Todas las categorías</option>
-        </select>
-        <select id="filtroTipo">
-          <option value="">Gratis y de paga</option>
-          <option value="gratis">Solo gratis</option>
-          <option value="pago">Solo de paga</option>
-        </select>
-        <button id="btnPublicarRecurso" class="hidden">+ Publicar recurso</button>
-      </div>
-      <div class="grid" id="resourceGrid"></div>
-      <div class="empty-state hidden" id="emptyState">No hay recursos disponibles todavía.</div>
-    </div>
-  </div>
-</div>
-
-<!-- Drawer / menú lateral -->
-<div class="drawer-overlay" id="drawerOverlay"></div>
-<div class="drawer" id="drawer">
-  <div class="drawer-profile" id="drawerProfile"></div>
-  <div class="drawer-links" id="drawerLinks"></div>
-  <div class="drawer-section-title">Notificaciones</div>
-  <div style="padding: 0 14px 14px;">
-    <button class="secondary" id="btnActivarPush" style="width:100%;">🔔 Activar notificaciones push</button>
-  </div>
-  <div class="drawer-section-title">Apariencia</div>
-  <div id="temaSelector" style="padding: 0 14px 14px; display: flex; flex-direction: column; gap: 6px;"></div>
-  <div class="drawer-footer">
-    <button class="secondary" id="btnLogoutDrawer">Cerrar sesión</button>
   </div>
 </div>
 
 <script type="module">
 import { registrarUsuario, iniciarSesion, cerrarSesion, observarSesion, traducirErrorAuth, enviarCorreoRestablecer, cuentaBloqueada, verificarMantenimiento } from "./auth.js";
-import { cargarRecursos } from "./app.js";
-import { escucharNotificaciones, marcarNotificacionLeida, marcarTodasLeidas, borrarNotificacion } from "./notificaciones.js";
-import { aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
-import { TEMAS, aplicarTema, obtenerTemaGuardado } from "./temas.js";
-import { inicializarPush, pedirPermisoYVincular, tienePermisoPush } from "./push.js";
 
 let modoRegistro = false;
-let perfilGlobal = null;
-let uidGlobal = null;
 
 const authView = document.getElementById("authView");
 const pendingView = document.getElementById("pendingView");
-const resourcesView = document.getElementById("resourcesView");
 const userInfo = document.getElementById("userInfo");
 const btnAbrirDrawer = document.getElementById("btnAbrirDrawer");
-const drawer = document.getElementById("drawer");
-const drawerOverlay = document.getElementById("drawerOverlay");
-const drawerProfile = document.getElementById("drawerProfile");
-const drawerLinks = document.getElementById("drawerLinks");
-const btnPublicarRecurso = document.getElementById("btnPublicarRecurso");
 
 const authTitle = document.getElementById("authTitle");
 const authError = document.getElementById("authError");
@@ -561,210 +515,19 @@ document.getElementById("btnLogoutPending").addEventListener("click", cerrarSesi
 function mostrarSoloVista(vista) {
   authView.classList.add("hidden");
   pendingView.classList.add("hidden");
-  resourcesView.classList.add("hidden");
   vista.classList.remove("hidden");
 }
 
-// ============ DRAWER (menú lateral) ============
-
-function abrirDrawer() {
-  drawer.classList.add("open");
-  drawerOverlay.classList.add("open");
-}
-function cerrarDrawer() {
-  drawer.classList.remove("open");
-  drawerOverlay.classList.remove("open");
-}
-btnAbrirDrawer.addEventListener("click", abrirDrawer);
-drawerOverlay.addEventListener("click", cerrarDrawer);
-
-function construirDrawer(perfil) {
-  const inicial = (perfil.nombre || "?")[0].toUpperCase();
-  drawerProfile.innerHTML = `
-    ${perfil.fotoURL
-      ? `<img class="drawer-avatar" src="${perfil.fotoURL}" onerror="this.outerHTML='<div class=&quot;drawer-avatar&quot;>${inicial}</div>'">`
-      : `<div class="drawer-avatar">${inicial}</div>`}
-    <div>
-      <div class="nombre">${perfil.nombre}</div>
-      <div class="username">${perfil.username ? "@" + perfil.username : ""}</div>
-    </div>
-  `;
-
-  const links = [
-    { href: "muro.html", icon: "🌐", label: "Muro" },
-    { href: "novedades.html", icon: "📣", label: "Novedades" },
-    { href: "billetera.html", icon: "💰", label: "Mi billetera" },
-    { href: "comprar-giftcard.html", icon: "🎁", label: "Comprar tarjetas de regalo" },
-    { href: "juegos.html", icon: "🎮", label: "Juegos" },
-    { href: "mis-recursos.html", icon: "📄", label: "Mis recursos" },
-    { href: "perfil.html", icon: "👤", label: "Mi perfil" },
-    { href: "amigos.html", icon: "👥", label: "Mis amigos" },
-    { href: "solicitudes.html", icon: "🤝", label: "Solicitudes de amistad" },
-    { href: "ver-perfil.html", icon: "🔎", label: "Buscar perfiles" },
-    { href: "chat.html", icon: "💬", label: "Chat" },
-    { href: "sugerencias.html", icon: "💡", label: "Sugerencias" },
-  ];
-
-  let html = links.map(l => `<a class="drawer-link" href="${l.href}"><span class="icon">${l.icon}</span>${l.label}</a>`).join("");
-
-  if (perfil.rol === "admin") {
-    html += `<div class="drawer-section-title">Administración</div>`;
-    html += `<a class="drawer-link" href="admin.html"><span class="icon">🛠️</span>Panel Admin</a>`;
-  }
-
-  drawerLinks.innerHTML = html;
-  renderSelectorTemas();
-}
-
-// ============ SELECTOR DE TEMAS ============
-
-const temaSelector = document.getElementById("temaSelector");
-
-function renderSelectorTemas() {
-  const temaActivo = obtenerTemaGuardado();
-  temaSelector.innerHTML = Object.entries(TEMAS).map(([id, t]) => `
-    <button class="tema-chip ${id === temaActivo ? "activo" : ""}" data-tema="${id}" type="button">
-      <span class="tema-swatch" style="background:${t.vars["--bg"]}; border:1px solid ${t.vars["--border"]};">${t.emoji}</span>
-      <span class="tema-nombre">${t.nombre}</span>
-      <span class="tema-check">✓</span>
-    </button>
-  `).join("");
-
-  temaSelector.querySelectorAll("[data-tema]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      aplicarTema(btn.dataset.tema);
-      renderSelectorTemas();
-    });
-  });
-}
-
-document.getElementById("btnLogoutDrawer").addEventListener("click", cerrarSesion);
-
-// ============ NOTIFICACIONES PUSH (OneSignal) ============
-
-const btnActivarPush = document.getElementById("btnActivarPush");
-
-btnActivarPush.addEventListener("click", async () => {
-  if (!uidGlobal) return;
-  btnActivarPush.textContent = "Activando...";
-  btnActivarPush.disabled = true;
-
-  const permitido = await pedirPermisoYVincular(uidGlobal);
-
-  if (permitido) {
-    btnActivarPush.textContent = "🔔 Notificaciones activadas ✓";
-  } else {
-    btnActivarPush.textContent = "🔔 Activar notificaciones push";
-    alert("No se pudo activar. Es posible que hayas bloqueado los permisos de notificación para este sitio en la configuración de tu navegador.");
-  }
-  btnActivarPush.disabled = false;
-});
-
-async function actualizarEstadoBotonPush() {
-  try {
-    const yaActivo = await tienePermisoPush();
-    if (yaActivo) btnActivarPush.textContent = "🔔 Notificaciones activadas ✓";
-  } catch {}
-}
-
-// ============ NOTIFICACIONES (campanita) ============
-
-const bellWrapper = document.getElementById("bellWrapper");
-const btnBell = document.getElementById("btnBell");
-const bellBadge = document.getElementById("bellBadge");
-const notifPanel = document.getElementById("notifPanel");
-const notifList = document.getElementById("notifList");
-const btnMarcarTodasLeidas = document.getElementById("btnMarcarTodasLeidas");
-
-let notificacionesActuales = [];
-let unsubscribeNotifs = null;
-
-btnBell.addEventListener("click", () => {
-  notifPanel.classList.toggle("open");
-});
-document.addEventListener("click", (e) => {
-  if (!bellWrapper.contains(e.target)) notifPanel.classList.remove("open");
-});
-
-function tiempoRelativo(fecha) {
-  if (!fecha) return "";
-  const segundos = Math.floor((Date.now() - fecha.toDate().getTime()) / 1000);
-  if (segundos < 60) return "ahora";
-  if (segundos < 3600) return Math.floor(segundos / 60) + " min";
-  if (segundos < 86400) return Math.floor(segundos / 3600) + " h";
-  return Math.floor(segundos / 86400) + " d";
-}
-
-function renderNotificaciones() {
-  const noLeidas = notificacionesActuales.filter(n => !n.leida).length;
-  bellBadge.classList.toggle("hidden", noLeidas === 0);
-  if (noLeidas > 0) bellBadge.textContent = noLeidas > 9 ? "9+" : noLeidas;
-
-  if (notificacionesActuales.length === 0) {
-    notifList.innerHTML = `<div class="notif-empty">No tienes notificaciones.</div>`;
-    return;
-  }
-
-  notifList.innerHTML = notificacionesActuales.map(n => {
-    let acciones = "";
-    if (n.tipo === "solicitud_amistad") {
-      acciones = `
-        <div class="notif-actions">
-          <button data-aceptar-amistad="${n.id}" data-amistad-id="${n.dataExtra?.amistadId || ''}" data-de-uid="${n.deUid}" data-de-nombre="${n.deNombre}">Aceptar</button>
-          <button class="secondary" data-rechazar-amistad="${n.id}" data-amistad-id="${n.dataExtra?.amistadId || ''}">Rechazar</button>
-        </div>`;
-    }
-    return `
-      <div class="notif-item ${n.leida ? "" : "no-leida"}" data-notif-id="${n.id}">
-        <span class="notif-texto">${n.texto}</span>
-        <span class="notif-fecha">${tiempoRelativo(n.fecha)}</span>
-        ${acciones}
-      </div>
-    `;
-  }).join("");
-
-  // Click en la notificación (fuera de los botones de acción) la marca como leída
-  notifList.querySelectorAll(".notif-item").forEach(item => {
-    item.addEventListener("click", (e) => {
-      if (e.target.closest("button")) return;
-      marcarNotificacionLeida(item.dataset.notifId);
-    });
-  });
-
-  notifList.querySelectorAll("[data-aceptar-amistad]").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (!btn.dataset.amistadId) return;
-      await aceptarSolicitudAmistad(btn.dataset.amistadId, uidGlobal, perfilGlobal.nombre, btn.dataset.deUid, btn.dataset.deNombre);
-      await marcarNotificacionLeida(btn.dataset.aceptarAmistad);
-    });
-  });
-
-  notifList.querySelectorAll("[data-rechazar-amistad]").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (btn.dataset.amistadId) await eliminarAmistad(btn.dataset.amistadId);
-      await borrarNotificacion(btn.dataset.rechazarAmistad);
-    });
-  });
-}
-
-btnMarcarTodasLeidas.addEventListener("click", () => marcarTodasLeidas(notificacionesActuales));
-
-// ============ PUBLICAR RECURSO (usuarios normales, solo gratis) ============
-
-btnPublicarRecurso.addEventListener("click", () => {
-  location.href = "publicar-recurso.html";
-});
-
 // ============ SESIÓN ============
+// index.html ya NO muestra el muro ni los recursos — eso vive todo en muro.html
+// (fusión del feed social + recursos en una sola pantalla principal). Aquí solo
+// se resuelve login/registro y los estados bloqueantes (pendiente/suspendido/
+// mantenimiento); en cuanto la cuenta es válida, se redirige a muro.html.
 
 observarSesion((user, perfil) => {
   if (!user) {
     userInfo.innerHTML = "";
     btnAbrirDrawer.classList.add("hidden");
-    bellWrapper.classList.add("hidden");
-    if (unsubscribeNotifs) { unsubscribeNotifs(); unsubscribeNotifs = null; }
     mostrarSoloVista(authView);
     return;
   }
@@ -773,7 +536,6 @@ observarSesion((user, perfil) => {
   if (estado.bloqueada) {
     userInfo.innerHTML = `<button class="secondary" onclick="location.reload()">↻</button>`;
     btnAbrirDrawer.classList.add("hidden");
-    bellWrapper.classList.add("hidden");
 
     if (estado.motivo === "suspendido") {
       document.getElementById("pendingIcon").textContent = "🚫";
@@ -797,7 +559,6 @@ observarSesion((user, perfil) => {
       if (estadoMant.activo) {
         userInfo.innerHTML = `<button class="secondary" onclick="location.reload()">↻</button>`;
         btnAbrirDrawer.classList.add("hidden");
-        bellWrapper.classList.add("hidden");
         document.getElementById("pendingIcon").textContent = "🛠️";
         document.getElementById("pendingTitulo").textContent = "Sitio en mantenimiento";
         let texto = estadoMant.motivo ? "Motivo: " + estadoMant.motivo : "Volvemos pronto.";
@@ -807,41 +568,14 @@ observarSesion((user, perfil) => {
         document.getElementById("pendingTexto").style.whiteSpace = "pre-line";
         mostrarSoloVista(pendingView);
       } else {
-        continuarCargaNormal(user, perfil);
+        location.href = "muro.html";
       }
     });
     return;
   }
 
-  continuarCargaNormal(user, perfil);
+  location.href = "muro.html";
 });
-
-function continuarCargaNormal(user, perfil) {
-  perfilGlobal = perfil;
-  uidGlobal = user.uid;
-  btnAbrirDrawer.classList.remove("hidden");
-  construirDrawer(perfil);
-
-  inicializarPush();
-  actualizarEstadoBotonPush();
-
-  bellWrapper.classList.remove("hidden");
-  if (!unsubscribeNotifs) {
-    unsubscribeNotifs = escucharNotificaciones(user.uid, (lista) => {
-      notificacionesActuales = lista;
-      renderNotificaciones();
-    });
-  }
-
-  userInfo.innerHTML = `
-    <span>👋 ${perfil.nombre.split(" ")[0]}</span>
-    <a href="billetera.html" style="text-decoration:none; color:var(--success); font-size:12px; font-weight:600; border:1px solid var(--border); padding:6px 10px; border-radius:8px;">💰 $${perfil.saldo || 0}</a>
-  `;
-  btnPublicarRecurso.classList.remove("hidden");
-
-  mostrarSoloVista(resourcesView);
-  cargarRecursos(perfil, uidGlobal);
-}
 </script>
 
 <script>
