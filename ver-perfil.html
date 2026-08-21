@@ -102,15 +102,22 @@
     <div class="profile-header">
       <img id="verAvatarImg" class="avatar-big hidden">
       <div id="verAvatarInicial" class="avatar-big"></div>
-      <h2 id="verNombre"></h2>
+      <h2 id="verNombre"></h2><span id="verInsignias"></span>
       <div class="username" id="verUsername"></div>
+      <div class="seguidores-count" id="verSeguidores" style="font-size:12.5px; color:var(--text-dim); margin-top:2px;"></div>
     </div>
     <div class="roles-list" id="verRoles"></div>
     <div class="descripcion-box hidden" id="verDescripcion"></div>
-    <button id="btnAmistad" class="secondary" style="width:100%; margin-top:18px;"></button>
+    <button id="btnSeguir" class="secondary" style="width:100%; margin-top:18px;"></button>
+    <button id="btnAmistad" class="secondary" style="width:100%; margin-top:10px;"></button>
     <button id="btnChatearDesdeAqui" style="width:100%; margin-top:10px;">💬 Enviar mensaje</button>
+    <button id="btnReportarUsuario" class="secondary" style="width:100%; margin-top:10px; color:var(--danger);">🚩 Reportar usuario</button>
   </div>
 </div>
+
+<style>
+  #verInsignias { font-size: 14px; margin-left: 4px; vertical-align: middle; }
+</style>
 
 <script type="module" src="ver-perfil.js"></script>
 </body>
