@@ -128,7 +128,7 @@
   .empty { text-align: center; color: var(--text-dim); padding: 40px 20px; font-size: 13px; }
   .hidden { display: none !important; }
 
-  .badge-verificado { font-size: 12px; margin-left: 3px; cursor: default; }
+  .badge-verificado { width: 15px; height: 15px; margin-left: 3px; vertical-align: -2px; display: inline-block; }
 
   /* Campanita de notificaciones (igual que en index.html) */
   .bell-wrapper { position: relative; }
@@ -415,7 +415,7 @@ function construirDrawer(perfil) {
 
   const links = [
     { href: "novedades.html", icon: "📣", label: "Novedades" },
-    { href: "billetera.html", icon: "💰", label: `Mi billetera ($${perfil.saldo || 0})` },
+    { href: "billetera.html", icon: "💰", imgIcon: "dinero-32.png", label: `Mi billetera ($${perfil.saldo || 0})` },
     { href: "comprar-giftcard.html", icon: "🎁", label: "Comprar tarjetas de regalo" },
     { href: "juegos.html", icon: "🎮", label: "Juegos" },
     { href: "mis-recursos.html", icon: "📄", label: "Mis recursos" },
@@ -427,7 +427,7 @@ function construirDrawer(perfil) {
     { href: "sugerencias.html", icon: "💡", label: "Sugerencias" },
   ];
 
-  let html = links.map(l => `<a class="drawer-link" href="${l.href}"><span class="icon">${l.icon}</span>${l.label}</a>`).join("");
+  let html = links.map(l => `<a class="drawer-link" href="${l.href}">${l.imgIcon ? `<img src="${l.imgIcon}" class="icon" style="width:17px;height:17px;object-fit:contain;">` : `<span class="icon">${l.icon}</span>`}${l.label}</a>`).join("");
 
   if (perfil.rol === "admin") {
     html += `<div class="drawer-section-title">Administración</div>`;
