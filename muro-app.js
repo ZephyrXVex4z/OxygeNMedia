@@ -174,8 +174,8 @@ function renderCitaPreview() {
   }
   citaPreview.innerHTML = `
     <div class="cita-recurso-preview">
-      <span>📎 Citando: <strong>${recursoCitadoActual.titulo}</strong></span>
-      <span style="cursor:pointer; color:var(--danger);" id="quitarCita">✕</span>
+      <span><img src="adjuntar-32.png" class="icon-inline" alt=""> Citando: <strong>${recursoCitadoActual.titulo}</strong></span>
+      <span style="cursor:pointer;" id="quitarCita"><img src="cerrar-32.png" class="icon-inline" alt="Quitar"></span>
     </div>
   `;
   document.getElementById("quitarCita").addEventListener("click", () => {
@@ -336,30 +336,30 @@ function renderPost(p) {
           <div class="nombre">${p.autorNombre}<span data-insignia-post="${p.id}"></span></div>
           <div class="fecha">${fecha}</div>
         </div>
-        ${puedoEditar ? `<button class="icon-only secondary" data-editar-post="${p.id}">✎</button>` : ""}
-        ${puedoBorrar ? `<button class="icon-only secondary" data-borrar-post="${p.id}">🗑️</button>` : ""}
-        ${!puedoEditar ? `<button class="icon-only secondary" data-reportar-post="${p.id}" title="Reportar">🚩</button>` : ""}
+        ${puedoEditar ? `<button class="icon-only secondary" data-editar-post="${p.id}"><img src="editar-32.png" class="icon-inline" alt="Editar"></button>` : ""}
+        ${puedoBorrar ? `<button class="icon-only secondary" data-borrar-post="${p.id}"><img src="borrar-32.png" class="icon-inline" alt="Borrar"></button>` : ""}
+        ${!puedoEditar ? `<button class="icon-only secondary" data-reportar-post="${p.id}" title="Reportar"><img src="reportar-32.png" class="icon-inline" alt="Reportar"></button>` : ""}
       </div>
 
       ${p.texto ? `<div class="post-texto">${textoConEnlaces}</div>` : ""}
       ${p.imagenURL ? `<img class="post-imagen" src="${p.imagenURL}" onerror="this.style.display='none'">` : ""}
       ${p.recursoCitado ? `
         <a class="cita-recurso" href="index.html">
-          📎 <strong>${p.recursoCitado.titulo}</strong> — ${p.recursoCitado.categoria}
+          <img src="adjuntar-32.png" class="icon-inline" alt=""> <strong>${p.recursoCitado.titulo}</strong> — ${p.recursoCitado.categoria}
         </a>
       ` : ""}
       ${p.repostDe ? `
         <div class="cita-recurso" style="flex-direction:column; align-items:flex-start; gap:4px;">
-          <span style="color:var(--text-dim); font-size:11px;">🔁 Compartido de ${p.repostDe.autorNombre}</span>
+          <span style="color:var(--text-dim); font-size:11px;"><img src="repost-32.png" class="icon-inline" alt=""> Compartido de ${p.repostDe.autorNombre}</span>
           ${p.repostDe.texto ? `<span>${escapeHtml(p.repostDe.texto)}</span>` : ""}
           ${p.repostDe.imagenURL ? `<img src="${p.repostDe.imagenURL}" style="width:100%; border-radius:var(--radius); margin-top:4px;" onerror="this.style.display='none'">` : ""}
         </div>
       ` : ""}
 
       <div class="post-actions">
-        <button class="post-action" data-like-btn="${p.id}">🤍 <span class="like-count-num" data-like-count="${p.id}">${p.likesCount || 0}</span></button>
-        <button class="post-action" data-toggle-comentarios="${p.id}">💬 ${p.comentariosCount || 0}</button>
-        <button class="post-action" data-repost-btn="${p.id}">🔁 Compartir</button>
+        <button class="post-action" data-like-btn="${p.id}"><img src="like-outline-32.png" class="icon-inline" alt="Me gusta"> <span class="like-count-num" data-like-count="${p.id}">${p.likesCount || 0}</span></button>
+        <button class="post-action" data-toggle-comentarios="${p.id}"><img src="comentario-32.png" class="icon-inline" alt="Comentarios"> ${p.comentariosCount || 0}</button>
+        <button class="post-action" data-repost-btn="${p.id}"><img src="repost-32.png" class="icon-inline" alt="Repost"> Compartir</button>
       </div>
 
       <div class="comentarios-box" id="comentarios-${p.id}">
@@ -395,7 +395,7 @@ function conectarEventosFeed(publicaciones) {
     const btn = listaFeed.querySelector(`[data-like-btn="${p.id}"]`);
     if (btn && yaLike) {
       btn.classList.add("liked");
-      btn.innerHTML = `❤️ <span class="like-count-num" data-like-count="${p.id}">${p.likesCount || 0}</span>`;
+      btn.innerHTML = `<img src="like-lleno-32.png" class="icon-inline" alt="Ya no me gusta"> <span class="like-count-num" data-like-count="${p.id}">${p.likesCount || 0}</span>`;
     }
 
     // Insignia del autor (admin/dorada/azul), se pinta aparte para no bloquear el render inicial del feed
@@ -418,7 +418,7 @@ function conectarEventosFeed(publicaciones) {
         const countActual = parseInt(btn.querySelector(".like-count-num").textContent, 10) || 0;
         const nuevoCount = seAgrego ? countActual + 1 : Math.max(0, countActual - 1);
         btn.classList.toggle("liked", seAgrego);
-        btn.innerHTML = `${seAgrego ? "❤️" : "🤍"} <span class="like-count-num" data-like-count="${pubId}">${nuevoCount}</span>`;
+        btn.innerHTML = `<img src="${seAgrego ? "like-lleno-32.png" : "like-outline-32.png"}" class="icon-inline" alt="Me gusta"> <span class="like-count-num" data-like-count="${pubId}">${nuevoCount}</span>`;
       } catch (err) {
         alert("Error: " + err.message);
       }
@@ -604,6 +604,14 @@ async function abrirComentarios(pubId) {
   const input = document.querySelector(`[data-input-comentario="${pubId}"]`);
   const btnEnviar = document.querySelector(`[data-enviar-comentario="${pubId}"]`);
 
+  // Evita duplicar el envío de comentarios: abrirComentarios() se llama cada vez que
+  // el usuario abre el panel (incluso si ya lo había abierto antes en esta misma
+  // sesión), y sin este candado se iba acumulando un addEventListener nuevo por
+  // cada apertura — con 2 aperturas, el comentario se guardaba 2 veces; con 3, 3
+  // veces, etc. El data-attribute marca que este input/botón ya tiene su listener.
+  if (btnEnviar.dataset.listenerListo === "true") return;
+  btnEnviar.dataset.listenerListo = "true";
+
   const enviar = async () => {
     const texto = input.value.trim();
     if (!texto) return;
@@ -612,6 +620,7 @@ async function abrirComentarios(pubId) {
     const autorId = postDiv?.dataset.autorId || null;
 
     input.disabled = true;
+    btnEnviar.disabled = true;
     try {
       await agregarComentario(pubId, usuarioActual.uid, usuarioActual.nombre, texto, autorId, usuarioActual.nombre);
       input.value = "";
@@ -619,12 +628,13 @@ async function abrirComentarios(pubId) {
       const contadorBtn = document.querySelector(`[data-toggle-comentarios="${pubId}"]`);
       if (contadorBtn) {
         const actual = parseInt(contadorBtn.textContent.replace(/\D/g, ""), 10) || 0;
-        contadorBtn.innerHTML = `💬 ${actual + 1}`;
+        contadorBtn.innerHTML = `<img src="comentario-32.png" class="icon-inline" alt="Comentarios"> ${actual + 1}`;
       }
     } catch (err) {
       alert("Error: " + err.message);
     }
     input.disabled = false;
+    btnEnviar.disabled = false;
   };
 
   btnEnviar.addEventListener("click", enviar);
@@ -642,8 +652,8 @@ async function refrescarListaComentarios(pubId) {
         <div class="comentario-item">
           <span><span class="nombre">${c.autorNombre}<span data-insignia-comentario="${c.id}"></span>:</span>${escapeHtml(c.texto)}</span>
           ${(c.autorId === usuarioActual.uid || usuarioActual.rol === "admin")
-            ? `<span style="cursor:pointer; color:var(--text-dim); font-size:11px; margin-left:auto;" data-borrar-comentario="${c.id}" data-pub-id="${pubId}">✕</span>`
-            : `<span style="cursor:pointer; color:var(--text-dim); font-size:11px; margin-left:auto;" data-reportar-comentario="${c.id}" data-pub-id="${pubId}" data-autor-id="${c.autorId}" data-autor-nombre="${escapeHtml(c.autorNombre || '')}" title="Reportar">🚩</span>`}
+            ? `<span style="cursor:pointer; margin-left:auto;" data-borrar-comentario="${c.id}" data-pub-id="${pubId}"><img src="cerrar-32.png" class="icon-inline-sm" alt="Borrar"></span>`
+            : `<span style="cursor:pointer; margin-left:auto;" data-reportar-comentario="${c.id}" data-pub-id="${pubId}" data-autor-id="${c.autorId}" data-autor-nombre="${escapeHtml(c.autorNombre || '')}" title="Reportar"><img src="reportar-32.png" class="icon-inline-sm" alt="Reportar"></span>`}
         </div>
       `).join("");
 
@@ -659,7 +669,7 @@ async function refrescarListaComentarios(pubId) {
       const contadorBtn = document.querySelector(`[data-toggle-comentarios="${pubId}"]`);
       if (contadorBtn) {
         const actual = parseInt(contadorBtn.textContent.replace(/\D/g, ""), 10) || 0;
-        contadorBtn.innerHTML = `💬 ${Math.max(0, actual - 1)}`;
+        contadorBtn.innerHTML = `<img src="comentario-32.png" class="icon-inline" alt="Comentarios"> ${Math.max(0, actual - 1)}`;
       }
     });
   });
