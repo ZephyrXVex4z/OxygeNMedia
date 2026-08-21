@@ -4,6 +4,7 @@
 import { db } from "./firebase-config.js";
 import { observarSesion, cuentaBloqueada } from "./auth.js";
 import { obtenerSaldo, transferirCredito, obtenerHistorial, canjearTarjetaRegalo } from "./wallet.js";
+import { comprarVerificacionDorada, PRECIO_VERIFICACION_DORADA } from "./verificados.js";
 import {
   collection, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -12,6 +13,9 @@ let usuarioActual = null;
 let destinatarioSeleccionado = null; // { uid, nombre }
 
 const saldoActual = document.getElementById("saldoActual");
+const textoVerificacionDorada = document.getElementById("textoVerificacionDorada");
+const btnComprarVerificacion = document.getElementById("btnComprarVerificacion");
+const msgVerificacion = document.getElementById("msgVerificacion");
 const buscarDestinatario = document.getElementById("buscarDestinatario");
 const resultadosBusqueda = document.getElementById("resultadosBusqueda");
 const destinatarioSeleccionadoDiv = document.getElementById("destinatarioSeleccionado");
@@ -33,6 +37,41 @@ observarSesion((user, perfil) => {
   usuarioActual = { uid: user.uid, ...perfil };
   refrescarSaldo();
   cargarHistorial();
+  actualizarCardVerificacion(perfil);
+});
+
+// ============ VERIFICACIÓN DORADA ============
+
+function actualizarCardVerificacion(perfil) {
+  if (perfil.verificadoDorado) {
+    textoVerificacionDorada.textContent = "Ya tienes la verificación dorada. ¡Gracias por apoyar a la comunidad!";
+    btnComprarVerificacion.classList.add("hidden");
+  } else {
+    textoVerificacionDorada.textContent = `Destaca tu perfil con la insignia dorada por $${PRECIO_VERIFICACION_DORADA} Ox2. También puedes solicitarla directamente a un administrador si prefieres pagar por otro medio.`;
+    btnComprarVerificacion.classList.remove("hidden");
+  }
+}
+
+btnComprarVerificacion.addEventListener("click", async () => {
+  if (!confirm(`¿Comprar la verificación dorada por $${PRECIO_VERIFICACION_DORADA} Ox2? Se descontará de tu saldo.`)) return;
+
+  btnComprarVerificacion.disabled = true;
+  msgVerificacion.style.display = "none";
+  try {
+    await comprarVerificacionDorada(usuarioActual.uid, usuarioActual.nombre);
+    usuarioActual.verificadoDorado = true;
+    actualizarCardVerificacion(usuarioActual);
+    msgVerificacion.textContent = "¡Felicidades! Ya tienes tu verificación dorada 🥇";
+    msgVerificacion.className = "msg ok";
+    msgVerificacion.style.display = "block";
+    refrescarSaldo();
+    cargarHistorial();
+  } catch (err) {
+    msgVerificacion.textContent = err.message;
+    msgVerificacion.className = "msg error";
+    msgVerificacion.style.display = "block";
+  }
+  btnComprarVerificacion.disabled = false;
 });
 
 async function refrescarSaldo() {
@@ -198,6 +237,8 @@ async function cargarHistorial() {
       texto = t.motivo || "Compra de recurso";
     } else if (t.tipo === "canje_tarjeta") {
       texto = "🎁 " + (t.motivo || "Tarjeta de regalo canjeada");
+    } else if (t.tipo === "compra_verificacion") {
+      texto = "🥇 " + (t.motivo || "Compra de verificación dorada");
     }
 
     const esPositivo = esRecibido || t.tipo === "admin_dar" || t.tipo === "canje_tarjeta";
