@@ -7,6 +7,9 @@ import { registrarLog, obtenerLogsRecientes } from "./logs.js";
 import { adminAjustarSaldo, crearTarjetaRegalo, listarTarjetasRegalo } from "./wallet.js";
 import { publicarActualizacion, editarActualizacion, borrarActualizacion, listarActualizaciones } from "./actualizaciones.js";
 import { activarMantenimiento, desactivarMantenimiento, obtenerEstadoMantenimiento } from "./mantenimiento.js";
+import { listarReportesPendientes, listarReportesResueltos, resolverReporte, descartarReporte } from "./reportes.js";
+import { adminOtorgarVerificacionDorada, adminOtorgarVerificacionAzul, insigniaVerificado } from "./verificados.js";
+import { borrarPublicacion, borrarComentario } from "./muro.js";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, setDoc,
   query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove
@@ -37,6 +40,8 @@ observarSesion((user, perfil) => {
   cargarTarjetas();
   cargarNovedadesAdmin();
   cargarEstadoMantenimiento();
+  cargarReportes();
+  cargarVerificados();
 });
 
 // --- Tabs ---
@@ -52,6 +57,8 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("tabRegistro").classList.add("hidden");
     document.getElementById("tabTarjetas").classList.add("hidden");
     document.getElementById("tabNovedades").classList.add("hidden");
+    document.getElementById("tabReportes").classList.add("hidden");
+    document.getElementById("tabVerificaciones").classList.add("hidden");
     document.getElementById("tabMantenimiento").classList.add("hidden");
     document.getElementById("tab" + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).classList.remove("hidden");
   });
@@ -345,7 +352,7 @@ async function cargarTodos() {
   });
 
   tbody.querySelectorAll("[data-suspender]").forEach(btn => {
-    btn.addEventListener("click", () => abrirModalSuspender(btn.dataset.suspender, btn.dataset.nombre));
+    btn.addEventListener("click", () => { reporteEnSuspensionActual = null; abrirModalSuspender(btn.dataset.suspender, btn.dataset.nombre); });
   });
 
   tbody.querySelectorAll("[data-reactivar]").forEach(btn => {
@@ -385,6 +392,9 @@ const suspenderMotivo = document.getElementById("suspenderMotivo");
 const suspenderDuracion = document.getElementById("suspenderDuracion");
 let usuarioASuspenderId = null;
 let usuarioASuspenderNombre = null;
+// Si la suspensión se abrió desde la pestaña de Reportes, guarda qué reporte
+// resolver también al confirmar (se limpia siempre al abrir el modal de otro lado).
+let reporteEnSuspensionActual = null;
 
 function abrirModalSuspender(uid, nombre) {
   usuarioASuspenderId = uid;
@@ -397,6 +407,7 @@ function abrirModalSuspender(uid, nombre) {
 
 document.getElementById("btnCancelarSuspender").addEventListener("click", () => {
   modalSuspender.classList.add("hidden");
+  reporteEnSuspensionActual = null;
 });
 
 document.getElementById("btnConfirmarSuspender").addEventListener("click", async () => {
@@ -426,6 +437,16 @@ document.getElementById("btnConfirmarSuspender").addEventListener("click", async
       detalle: (duracion === "permanente" ? "Suspensión permanente" : `Suspensión por ${duracion} días`) +
                (motivo ? ` — Motivo: ${motivo}` : "")
     });
+
+    // Si esta suspensión vino de resolver un reporte, márcalo como resuelto también
+    if (reporteEnSuspensionActual) {
+      await resolverReporte(
+        reporteEnSuspensionActual, adminActual.uid, adminActual.nombre,
+        `Usuario suspendido${motivo ? " — Motivo: " + motivo : ""}.`
+      );
+      reporteEnSuspensionActual = null;
+      cargarReportes();
+    }
 
     modalSuspender.classList.add("hidden");
     cargarTodos();
@@ -894,6 +915,229 @@ async function cargarNovedadesAdmin() {
       if (!confirm("¿Borrar esta novedad?")) return;
       await borrarActualizacion(a.id);
       cargarNovedadesAdmin();
+    });
+  });
+}
+
+// ============ REPORTES ============
+
+const tablaReportes = document.getElementById("tablaReportes");
+const emptyReportes = document.getElementById("emptyReportes");
+const tablaReportesResueltos = document.getElementById("tablaReportesResueltos");
+const emptyReportesResueltos = document.getElementById("emptyReportesResueltos");
+
+const ETIQUETA_TIPO_REPORTE = { usuario: "👤 Usuario", publicacion: "📝 Publicación", comentario: "💬 Comentario" };
+
+async function cargarReportes() {
+  const reportes = await listarReportesPendientes();
+  emptyReportes.classList.toggle("hidden", reportes.length > 0);
+
+  tablaReportes.innerHTML = reportes.map(r => {
+    const fecha = r.fecha ? r.fecha.toDate().toLocaleDateString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+    let accionesContenido = "";
+
+    if (r.objetivoTipo === "publicacion") {
+      accionesContenido = `<button class="danger" data-borrar-pub-reporte="${r.id}" data-pub-id="${r.objetivoId}">Borrar publicación</button>`;
+    } else if (r.objetivoTipo === "comentario") {
+      accionesContenido = `<button class="danger" data-borrar-com-reporte="${r.id}" data-pub-id="${r.objetivoExtraId}" data-com-id="${r.objetivoId}">Borrar comentario</button>`;
+    }
+
+    return `
+      <tr>
+        <td>${fecha}</td>
+        <td>${ETIQUETA_TIPO_REPORTE[r.objetivoTipo] || r.objetivoTipo}</td>
+        <td>${r.objetivoAutorNombre || "—"}</td>
+        <td>${r.reportanteNombre}</td>
+        <td>${r.motivo}</td>
+        <td style="max-width:200px; font-size:12px; color:var(--text-dim);">${r.infoAdicional || "—"}</td>
+        <td style="display:flex; flex-direction:column; gap:4px; min-width:150px;">
+          ${accionesContenido}
+          <button class="danger" data-suspender-reporte="${r.id}" data-uid="${r.objetivoAutorUid}" data-nombre="${r.objetivoAutorNombre}">Suspender usuario</button>
+          <button class="secondary" data-descartar-reporte="${r.id}">Descartar</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  tablaReportes.querySelectorAll("[data-borrar-pub-reporte]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Borrar esta publicación? Esta acción no se puede deshacer.")) return;
+      try {
+        await borrarPublicacion(btn.dataset.pubId);
+        await resolverReporte(btn.dataset.borrarPubReporte, adminActual.uid, adminActual.nombre, "Publicación borrada por un administrador.");
+        cargarReportes();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+  });
+
+  tablaReportes.querySelectorAll("[data-borrar-com-reporte]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Borrar este comentario? Esta acción no se puede deshacer.")) return;
+      try {
+        await borrarComentario(btn.dataset.pubId, btn.dataset.comId);
+        await resolverReporte(btn.dataset.borrarComReporte, adminActual.uid, adminActual.nombre, "Comentario borrado por un administrador.");
+        cargarReportes();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+  });
+
+  // Suspender usuario: reutiliza el mismo modal que ya existe en la pestaña
+  // "Todos los usuarios". Al confirmar la suspensión ahí, marcamos el reporte
+  // como resuelto por separado (el modal no sabe que viene de un reporte).
+  tablaReportes.querySelectorAll("[data-suspender-reporte]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      reporteEnSuspensionActual = btn.dataset.suspenderReporte;
+      abrirModalSuspender(btn.dataset.uid, btn.dataset.nombre);
+    });
+  });
+
+  tablaReportes.querySelectorAll("[data-descartar-reporte]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Descartar este reporte sin tomar ninguna acción?")) return;
+      await descartarReporte(btn.dataset.descartarReporte, adminActual.uid, adminActual.nombre);
+      cargarReportes();
+    });
+  });
+
+  cargarReportesResueltos();
+}
+
+async function cargarReportesResueltos() {
+  const reportes = await listarReportesResueltos(50);
+  emptyReportesResueltos.classList.toggle("hidden", reportes.length > 0);
+
+  tablaReportesResueltos.innerHTML = reportes.map(r => {
+    const fecha = r.fechaResolucion ? r.fechaResolucion.toDate().toLocaleDateString("es-MX", { day: "numeric", month: "short" }) : "";
+    return `
+      <tr>
+        <td>${fecha}</td>
+        <td>${ETIQUETA_TIPO_REPORTE[r.objetivoTipo] || r.objetivoTipo}</td>
+        <td>${r.objetivoAutorNombre || "—"}</td>
+        <td>${r.motivo}</td>
+        <td style="font-size:12px;">${r.resolucion || "—"}</td>
+        <td style="font-size:12px; color:var(--text-dim);">${r.adminNombre || "—"}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+// ============ VERIFICACIONES ============
+
+const buscarUsuarioVerificar = document.getElementById("buscarUsuarioVerificar");
+const resultadosVerificar = document.getElementById("resultadosVerificar");
+const tablaVerificados = document.getElementById("tablaVerificados");
+const emptyVerificados = document.getElementById("emptyVerificados");
+let todosLosUsuariosCache = null;
+
+let debounceBusquedaVerificar = null;
+buscarUsuarioVerificar.addEventListener("input", () => {
+  clearTimeout(debounceBusquedaVerificar);
+  const texto = buscarUsuarioVerificar.value.trim().replace(/^@/, "").toLowerCase();
+  if (texto.length < 2) { resultadosVerificar.innerHTML = ""; return; }
+  debounceBusquedaVerificar = setTimeout(() => buscarUsuariosParaVerificar(texto), 250);
+});
+
+async function buscarUsuariosParaVerificar(texto) {
+  if (!todosLosUsuariosCache) {
+    const snap = await getDocs(collection(db, "usuarios"));
+    todosLosUsuariosCache = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  }
+
+  const resultados = todosLosUsuariosCache.filter(u =>
+    (u.username && u.username.toLowerCase().includes(texto)) ||
+    (u.nombre && u.nombre.toLowerCase().includes(texto))
+  );
+
+  resultadosVerificar.innerHTML = resultados.length === 0
+    ? "<div class='empty'>No se encontraron usuarios.</div>"
+    : resultados.map(u => `
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid var(--border);">
+          <div>
+            <strong>${u.nombre}</strong> ${insigniaVerificado(u)}
+            <div style="font-size:12px; color:var(--text-dim);">@${u.username || "—"}</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="${u.verificadoDorado ? "danger" : "success"}" data-toggle-dorada="${u.uid}" data-nombre="${u.nombre}" data-estado="${u.verificadoDorado ? "quitar" : "dar"}">
+              ${u.verificadoDorado ? "Quitar 🥇" : "Dar 🥇"}
+            </button>
+            <button class="${u.verificadoAzul ? "danger" : "success"}" data-toggle-azul="${u.uid}" data-nombre="${u.nombre}" data-estado="${u.verificadoAzul ? "quitar" : "dar"}">
+              ${u.verificadoAzul ? "Quitar ✅" : "Dar ✅"}
+            </button>
+          </div>
+        </div>
+      `).join("");
+
+  resultadosVerificar.querySelectorAll("[data-toggle-dorada]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const otorgar = btn.dataset.estado === "dar";
+      try {
+        await adminOtorgarVerificacionDorada(adminActual.uid, adminActual.nombre, btn.dataset.toggleDorada, btn.dataset.nombre, otorgar);
+        todosLosUsuariosCache = null;
+        buscarUsuariosParaVerificar(buscarUsuarioVerificar.value.trim().replace(/^@/, "").toLowerCase());
+        cargarVerificados();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+  });
+
+  resultadosVerificar.querySelectorAll("[data-toggle-azul]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const otorgar = btn.dataset.estado === "dar";
+      try {
+        await adminOtorgarVerificacionAzul(adminActual.uid, adminActual.nombre, btn.dataset.toggleAzul, btn.dataset.nombre, otorgar);
+        todosLosUsuariosCache = null;
+        buscarUsuariosParaVerificar(buscarUsuarioVerificar.value.trim().replace(/^@/, "").toLowerCase());
+        cargarVerificados();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+  });
+}
+
+async function cargarVerificados() {
+  const snap = await getDocs(
+    query(collection(db, "usuarios"), where("verificadoDorado", "==", true))
+  );
+  const snapAzul = await getDocs(
+    query(collection(db, "usuarios"), where("verificadoAzul", "==", true))
+  );
+
+  const mapa = new Map();
+  snap.docs.forEach(d => mapa.set(d.id, { uid: d.id, ...d.data() }));
+  snapAzul.docs.forEach(d => mapa.set(d.id, { uid: d.id, ...d.data() }));
+  const verificados = [...mapa.values()];
+
+  emptyVerificados.classList.toggle("hidden", verificados.length > 0);
+  tablaVerificados.innerHTML = verificados.map(u => `
+    <tr>
+      <td>${u.nombre} <span style="font-size:11px; color:var(--text-dim);">@${u.username || "—"}</span></td>
+      <td>${u.verificadoDorado ? "🥇 Sí" : "—"}</td>
+      <td>${u.verificadoAzul ? "✅ Sí" : "—"}</td>
+      <td style="display:flex; gap:6px;">
+        ${u.verificadoDorado ? `<button class="danger" data-quitar-dorada-tabla="${u.uid}" data-nombre="${u.nombre}">Quitar 🥇</button>` : ""}
+        ${u.verificadoAzul ? `<button class="danger" data-quitar-azul-tabla="${u.uid}" data-nombre="${u.nombre}">Quitar ✅</button>` : ""}
+      </td>
+    </tr>
+  `).join("");
+
+  tablaVerificados.querySelectorAll("[data-quitar-dorada-tabla]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await adminOtorgarVerificacionDorada(adminActual.uid, adminActual.nombre, btn.dataset.quitarDoradaTabla, btn.dataset.nombre, false);
+      todosLosUsuariosCache = null;
+      cargarVerificados();
+    });
+  });
+  tablaVerificados.querySelectorAll("[data-quitar-azul-tabla]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await adminOtorgarVerificacionAzul(adminActual.uid, adminActual.nombre, btn.dataset.quitarAzulTabla, btn.dataset.nombre, false);
+      todosLosUsuariosCache = null;
+      cargarVerificados();
     });
   });
 }
