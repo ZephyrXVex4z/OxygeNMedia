@@ -10,7 +10,25 @@ import {
   obtenerComentarios, agregarComentario, borrarComentario,
   repostearPublicacion
 } from "./muro.js";
-import { collection, getDocs, query, where, limit } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+import { insigniaVerificado } from "./verificados.js";
+import { crearReporte, TIPO_OBJETIVO, MOTIVOS_POR_TIPO } from "./reportes.js";
+import { collection, getDocs, query, where, limit, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+// Caché simple de perfiles de autores (uid -> {rol, verificadoDorado, verificadoAzul})
+// para no pedir el documento completo del usuario cada vez que se pinta un post/comentario.
+// Solo se guardan los campos que afectan la insignia.
+const cacheInsignias = new Map();
+async function obtenerInsigniaHTML(autorId) {
+  if (cacheInsignias.has(autorId)) return cacheInsignias.get(autorId);
+  try {
+    const snap = await getDoc(doc(db, "usuarios", autorId));
+    const html = snap.exists() ? insigniaVerificado(snap.data()) : "";
+    cacheInsignias.set(autorId, html);
+    return html;
+  } catch {
+    return "";
+  }
+}
 
 let usuarioActual = null;
 let modoFeed = "general"; // "general" | "amigos"
@@ -315,11 +333,12 @@ function renderPost(p) {
           ? `<img class="post-avatar" src="${p.autorFotoURL}" onerror="this.outerHTML='<div class=&quot;post-avatar&quot;>${inicial}</div>'">`
           : `<div class="post-avatar">${inicial}</div>`}
         <div style="flex:1;">
-          <div class="nombre">${p.autorNombre}</div>
+          <div class="nombre">${p.autorNombre}<span data-insignia-post="${p.id}"></span></div>
           <div class="fecha">${fecha}</div>
         </div>
         ${puedoEditar ? `<button class="icon-only secondary" data-editar-post="${p.id}">✎</button>` : ""}
         ${puedoBorrar ? `<button class="icon-only secondary" data-borrar-post="${p.id}">🗑️</button>` : ""}
+        ${!puedoEditar ? `<button class="icon-only secondary" data-reportar-post="${p.id}" title="Reportar">🚩</button>` : ""}
       </div>
 
       ${p.texto ? `<div class="post-texto">${textoConEnlaces}</div>` : ""}
@@ -378,6 +397,10 @@ function conectarEventosFeed(publicaciones) {
       btn.classList.add("liked");
       btn.innerHTML = `❤️ <span class="like-count-num" data-like-count="${p.id}">${p.likesCount || 0}</span>`;
     }
+
+    // Insignia del autor (admin/dorada/azul), se pinta aparte para no bloquear el render inicial del feed
+    const insigniaEl = listaFeed.querySelector(`[data-insignia-post="${p.id}"]`);
+    if (insigniaEl) insigniaEl.innerHTML = await obtenerInsigniaHTML(p.autorId);
   });
 
   listaFeed.querySelectorAll("[data-like-btn]").forEach(btn => {
@@ -427,6 +450,119 @@ function conectarEventosFeed(publicaciones) {
   listaFeed.querySelectorAll(".hashtag-link").forEach(el => {
     el.addEventListener("click", () => aplicarFiltroHashtag(el.dataset.hashtag));
   });
+
+  listaFeed.querySelectorAll("[data-reportar-post]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const pubId = btn.dataset.reportarPost;
+      const p = publicacionesEnMemoria.get(pubId);
+      if (!p) return;
+      abrirModalReporte({
+        objetivoTipo: TIPO_OBJETIVO.PUBLICACION,
+        objetivoId: pubId,
+        objetivoAutorUid: p.autorId,
+        objetivoAutorNombre: p.autorNombre
+      });
+    });
+  });
+}
+
+// ============ REPORTAR (publicación, comentario, o usuario) ============
+// Modal genérico e inyectado en el DOM la primera vez que se usa, reutilizable
+// tanto para publicaciones como para comentarios (ver-perfil.js también lo usa
+// para reportar usuarios, importando esta misma función).
+
+let modalReporteEl = null;
+let reporteObjetivoActual = null;
+
+export function abrirModalReporte(objetivo) {
+  reporteObjetivoActual = objetivo;
+
+  if (!modalReporteEl) {
+    modalReporteEl = document.createElement("div");
+    modalReporteEl.id = "modalReporteGlobal";
+    modalReporteEl.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;";
+    document.body.appendChild(modalReporteEl);
+    modalReporteEl.addEventListener("click", (e) => {
+      if (e.target === modalReporteEl) cerrarModalReporte();
+    });
+  }
+
+  const motivos = MOTIVOS_POR_TIPO[objetivo.objetivoTipo] || MOTIVOS_POR_TIPO.publicacion;
+  const etiquetaTipo = {
+    usuario: "usuario",
+    publicacion: "publicación",
+    comentario: "comentario"
+  }[objetivo.objetivoTipo];
+
+  modalReporteEl.innerHTML = `
+    <div style="background:var(--card, #1a2233);border:1px solid var(--border, #2a3550);border-radius:var(--radius, 14px);padding:22px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;font-family:inherit;color:var(--text, #e8ecf5);">
+      <h3 style="margin-top:0;">Reportar ${etiquetaTipo}</h3>
+      <p style="font-size:12px;color:var(--text-dim, #8b96b0);margin-top:-8px;">
+        Vas a reportar a <strong>${objetivo.objetivoAutorNombre || "este usuario"}</strong>. Un administrador revisará tu reporte.
+      </p>
+
+      <label style="font-size:13px;color:var(--text-dim, #8b96b0);display:block;margin-bottom:4px;">Motivo</label>
+      <select id="selectMotivoReporte" style="width:100%;padding:10px 12px;border-radius:var(--radius,14px);border:1px solid var(--border,#2a3550);background:var(--input-bg,#10182a);color:inherit;font-size:14px;margin-bottom:12px;">
+        <option value="">Selecciona un motivo...</option>
+        ${motivos.map(m => `<option value="${m}">${m}</option>`).join("")}
+      </select>
+
+      <label style="font-size:13px;color:var(--text-dim, #8b96b0);display:block;margin-bottom:4px;">Proporcione más información (opcional)</label>
+      <textarea id="inputInfoReporte" placeholder="Ej: El nombre indica una grosería" style="width:100%;min-height:70px;padding:10px 12px;border-radius:var(--radius,14px);border:1px solid var(--border,#2a3550);background:var(--input-bg,#10182a);color:inherit;font-size:14px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
+
+      <div id="errorReporte" style="display:none;color:var(--danger,#e35d5d);font-size:12px;margin-bottom:10px;"></div>
+
+      <div style="display:flex;gap:8px;">
+        <button id="btnCancelarReporte" type="button" style="flex:1;background:transparent;border:1px solid var(--border,#2a3550);color:var(--text-dim,#8b96b0);">Cancelar</button>
+        <button id="btnEnviarReporte" type="button" style="flex:1;">Enviar reporte</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("btnCancelarReporte").addEventListener("click", cerrarModalReporte);
+  document.getElementById("btnEnviarReporte").addEventListener("click", enviarReporteActual);
+}
+
+function cerrarModalReporte() {
+  if (modalReporteEl) modalReporteEl.innerHTML = "";
+  reporteObjetivoActual = null;
+}
+
+async function enviarReporteActual() {
+  const select = document.getElementById("selectMotivoReporte");
+  const info = document.getElementById("inputInfoReporte");
+  const errorEl = document.getElementById("errorReporte");
+  const btn = document.getElementById("btnEnviarReporte");
+
+  const motivo = select.value;
+  if (!motivo) {
+    errorEl.textContent = "Selecciona un motivo antes de enviar.";
+    errorEl.style.display = "block";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+  try {
+    await crearReporte({
+      reportanteUid: usuarioActual.uid,
+      reportanteNombre: usuarioActual.nombre,
+      objetivoTipo: reporteObjetivoActual.objetivoTipo,
+      objetivoId: reporteObjetivoActual.objetivoId,
+      objetivoAutorUid: reporteObjetivoActual.objetivoAutorUid,
+      objetivoAutorNombre: reporteObjetivoActual.objetivoAutorNombre,
+      objetivoExtraId: reporteObjetivoActual.objetivoExtraId || null,
+      motivo,
+      infoAdicional: info.value.trim()
+    });
+    cerrarModalReporte();
+    alert("Reporte enviado. Gracias por ayudar a mantener segura la comunidad.");
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Enviar reporte";
+  }
 }
 
 async function mostrarQuienesDieronLike(pubId) {
@@ -504,12 +640,17 @@ async function refrescarListaComentarios(pubId) {
     ? "<div style='color:var(--text-dim); font-size:12px;'>Sé el primero en comentar.</div>"
     : comentarios.map(c => `
         <div class="comentario-item">
-          <span><span class="nombre">${c.autorNombre}:</span>${escapeHtml(c.texto)}</span>
+          <span><span class="nombre">${c.autorNombre}<span data-insignia-comentario="${c.id}"></span>:</span>${escapeHtml(c.texto)}</span>
           ${(c.autorId === usuarioActual.uid || usuarioActual.rol === "admin")
             ? `<span style="cursor:pointer; color:var(--text-dim); font-size:11px; margin-left:auto;" data-borrar-comentario="${c.id}" data-pub-id="${pubId}">✕</span>`
-            : ""}
+            : `<span style="cursor:pointer; color:var(--text-dim); font-size:11px; margin-left:auto;" data-reportar-comentario="${c.id}" data-pub-id="${pubId}" data-autor-id="${c.autorId}" data-autor-nombre="${escapeHtml(c.autorNombre || '')}" title="Reportar">🚩</span>`}
         </div>
       `).join("");
+
+  comentarios.forEach(async (c) => {
+    const el = lista.querySelector(`[data-insignia-comentario="${c.id}"]`);
+    if (el) el.innerHTML = await obtenerInsigniaHTML(c.autorId);
+  });
 
   lista.querySelectorAll("[data-borrar-comentario]").forEach(el => {
     el.addEventListener("click", async () => {
@@ -520,6 +661,18 @@ async function refrescarListaComentarios(pubId) {
         const actual = parseInt(contadorBtn.textContent.replace(/\D/g, ""), 10) || 0;
         contadorBtn.innerHTML = `💬 ${Math.max(0, actual - 1)}`;
       }
+    });
+  });
+
+  lista.querySelectorAll("[data-reportar-comentario]").forEach(el => {
+    el.addEventListener("click", () => {
+      abrirModalReporte({
+        objetivoTipo: TIPO_OBJETIVO.COMENTARIO,
+        objetivoId: el.dataset.reportarComentario,
+        objetivoExtraId: el.dataset.pubId,
+        objetivoAutorUid: el.dataset.autorId,
+        objetivoAutorNombre: el.dataset.autorNombre
+      });
     });
   });
 }
