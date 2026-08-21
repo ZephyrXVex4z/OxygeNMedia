@@ -130,6 +130,13 @@
 
   .badge-verificado { width: 15px; height: 15px; margin-left: 3px; vertical-align: -2px; display: inline-block; }
 
+  /* Íconos de interfaz (like, comentar, drawer, etc.) */
+  .icon-inline { width: 16px; height: 16px; vertical-align: -3px; object-fit: contain; }
+  .icon-inline-sm { width: 13px; height: 13px; vertical-align: -2px; object-fit: contain; }
+  .icon-inline-lg { width: 20px; height: 20px; vertical-align: -5px; object-fit: contain; }
+  .drawer-link .icon-inline { width: 18px; height: 18px; }
+  .post-action .icon-inline, .icon-only .icon-inline-lg { filter: none; }
+
   /* Campanita de notificaciones (igual que en index.html) */
   .bell-wrapper { position: relative; }
   .bell-btn { width: 38px; height: 38px; font-size: 17px; display:flex; align-items:center; justify-content:center; padding:0; }
@@ -225,7 +232,7 @@
     <h1>🌐 OxygeNMedia</h1>
     <div style="display:flex; align-items:center; gap:10px;">
       <div class="bell-wrapper hidden" id="bellWrapper">
-        <button class="bell-btn icon-only secondary" id="btnBell">🔔<span class="bell-badge hidden" id="bellBadge">0</span></button>
+        <button class="bell-btn icon-only secondary" id="btnBell"><img src="notificacion-32.png" class="icon-inline-lg" alt="Notificaciones"><span class="bell-badge hidden" id="bellBadge">0</span></button>
         <div class="notif-panel" id="notifPanel">
           <div class="notif-panel-header">
             <span>Notificaciones</span>
@@ -234,7 +241,7 @@
           <div id="notifList"></div>
         </div>
       </div>
-      <button class="hamburger-btn secondary icon-only" id="btnAbrirDrawer">☰</button>
+      <button class="hamburger-btn secondary icon-only" id="btnAbrirDrawer"><img src="menu-32.png" class="icon-inline-lg" alt="Menú"></button>
     </div>
   </header>
 
@@ -242,8 +249,8 @@
     <div class="container">
 
       <div class="tabs" id="tabsMain">
-        <button class="tab-btn active" data-vista="muro">🌐 Muro</button>
-        <button class="tab-btn" data-vista="recursos">📄 Recursos</button>
+        <button class="tab-btn active" data-vista="muro"><img src="muro-32.png" class="icon-inline" alt=""> Muro</button>
+        <button class="tab-btn" data-vista="recursos"><img src="recursos-32.png" class="icon-inline" alt=""> Recursos</button>
       </div>
 
       <div id="vistaMuro">
@@ -258,7 +265,7 @@
         <div class="composer-actions">
           <div class="composer-tools">
             <button class="secondary" id="btnToggleImagen">🖼️ Imagen</button>
-            <button class="secondary" id="btnCitarRecurso">📎 Citar recurso</button>
+            <button class="secondary" id="btnCitarRecurso"><img src="adjuntar-32.png" class="icon-inline" alt=""> Citar recurso</button>
           </div>
           <button id="btnPublicar">Publicar</button>
         </div>
@@ -414,24 +421,24 @@ function construirDrawer(perfil) {
   `;
 
   const links = [
-    { href: "novedades.html", icon: "📣", label: "Novedades" },
-    { href: "billetera.html", icon: "💰", imgIcon: "dinero-32.png", label: `Mi billetera ($${perfil.saldo || 0})` },
+    { href: "novedades.html", imgIcon: "novedades-32.png", label: "Novedades" },
+    { href: "billetera.html", imgIcon: "dinero-32.png", label: `Mi billetera ($${perfil.saldo || 0})` },
     { href: "comprar-giftcard.html", icon: "🎁", label: "Comprar tarjetas de regalo" },
-    { href: "juegos.html", icon: "🎮", label: "Juegos" },
-    { href: "mis-recursos.html", icon: "📄", label: "Mis recursos" },
-    { href: "perfil.html", icon: "👤", label: "Mi perfil" },
-    { href: "amigos.html", icon: "👥", label: "Mis amigos" },
-    { href: "solicitudes.html", icon: "🤝", label: "Solicitudes de amistad" },
-    { href: "ver-perfil.html", icon: "🔎", label: "Buscar perfiles" },
-    { href: "chat.html", icon: "💬", label: "Chat" },
-    { href: "sugerencias.html", icon: "💡", label: "Sugerencias" },
+    { href: "juegos.html", imgIcon: "juegos-32.png", label: "Juegos" },
+    { href: "mis-recursos.html", imgIcon: "recursos-32.png", label: "Mis recursos" },
+    { href: "perfil.html", imgIcon: "perfil-32.png", label: "Mi perfil" },
+    { href: "amigos.html", imgIcon: "amigos-32.png", label: "Mis amigos" },
+    { href: "solicitudes.html", imgIcon: "solicitudes-32.png", label: "Solicitudes de amistad" },
+    { href: "ver-perfil.html", imgIcon: "buscar-32.png", label: "Buscar perfiles" },
+    { href: "chat.html", imgIcon: "chat-32.png", label: "Chat" },
+    { href: "sugerencias.html", imgIcon: "sugerencias-32.png", label: "Sugerencias" },
   ];
 
-  let html = links.map(l => `<a class="drawer-link" href="${l.href}">${l.imgIcon ? `<img src="${l.imgIcon}" class="icon" style="width:17px;height:17px;object-fit:contain;">` : `<span class="icon">${l.icon}</span>`}${l.label}</a>`).join("");
+  let html = links.map(l => `<a class="drawer-link" href="${l.href}">${l.imgIcon ? `<img src="${l.imgIcon}" class="icon icon-inline" alt="">` : `<span class="icon">${l.icon}</span>`}${l.label}</a>`).join("");
 
   if (perfil.rol === "admin") {
     html += `<div class="drawer-section-title">Administración</div>`;
-    html += `<a class="drawer-link" href="admin.html"><span class="icon">🛠️</span>Panel Admin</a>`;
+    html += `<a class="drawer-link" href="admin.html"><img src="panel-admin-32.png" class="icon icon-inline" alt="">Panel Admin</a>`;
   }
 
   drawerLinks.innerHTML = html;
