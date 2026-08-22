@@ -482,6 +482,54 @@ service cloud.firestore {
       allow update, delete: if esAdminUsuario();
     }
 
+    match /cupoRecompensas/{mesId} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
+      // Cualquier usuario aprobado puede LEER cuánto cupo mensual queda (se muestra en
+      // la billetera y en el panel admin). Para escribir: el admin puede corregir el
+      // cupo manualmente sin restricción; un usuario normal solo puede INCREMENTAR
+      // gastadoMxn (nunca bajarlo ni ponerlo en negativo) — así la única forma de que
+      // un usuario "escriba" aquí es sumando lo que su propio canje costó, igual que
+      // hace canjearRecompensa(), y no puede manipular el cupo para saltarse el límite
+      // o bloquearlo arbitrariamente para los demás.
+      allow read: if esAprobadoUsuario() || esAdminUsuario();
+      allow write: if esAdminUsuario() ||
+                     (esAprobadoUsuario() &&
+                      request.resource.data.gastadoMxn is number &&
+                      request.resource.data.gastadoMxn > (resource == null ? 0 : resource.data.gastadoMxn));
+    }
+
+    match /canjesRecompensas/{canjeId} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+      function esAdminUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == "admin";
+      }
+
+      // El usuario ve solo sus propios canjes; el admin ve todos (para la cola de entrega).
+      allow read: if esAdminUsuario() ||
+                    (esAprobadoUsuario() && resource.data.uid == request.auth.uid);
+
+      // Solo se puede crear un canje propio, y siempre en estado "pendiente" (no se
+      // puede crear ya como "entregado" para saltarse la entrega real del admin).
+      allow create: if esAprobadoUsuario() &&
+                      request.resource.data.uid == request.auth.uid &&
+                      request.resource.data.estado == "pendiente";
+
+      // Solo el admin puede marcar un canje como entregado.
+      allow update, delete: if esAdminUsuario();
+    }
+
     match /configuracion/{docId} {
       function esAdminUsuario() {
         return request.auth != null &&
