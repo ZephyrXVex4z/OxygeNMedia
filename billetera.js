@@ -5,6 +5,7 @@ import { db } from "./firebase-config.js";
 import { observarSesion, cuentaBloqueada } from "./auth.js";
 import { obtenerSaldo, transferirCredito, obtenerHistorial, canjearTarjetaRegalo } from "./wallet.js";
 import { comprarVerificacionDorada, PRECIO_VERIFICACION_DORADA } from "./verificados.js";
+import { CATALOGO_RECOMPENSAS, obtenerEstadoCupoMensual, canjearRecompensa } from "./recompensas.js";
 import {
   collection, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -28,6 +29,9 @@ const emptyHistorial = document.getElementById("emptyHistorial");
 const inputCodigoTarjeta = document.getElementById("inputCodigoTarjeta");
 const btnCanjear = document.getElementById("btnCanjear");
 const msgCanjear = document.getElementById("msgCanjear");
+const estadoCupoRecompensas = document.getElementById("estadoCupoRecompensas");
+const gridRecompensas = document.getElementById("gridRecompensas");
+const msgRecompensas = document.getElementById("msgRecompensas");
 
 observarSesion((user, perfil) => {
   if (!user || cuentaBloqueada(perfil).bloqueada) {
@@ -38,6 +42,7 @@ observarSesion((user, perfil) => {
   refrescarSaldo();
   cargarHistorial();
   actualizarCardVerificacion(perfil);
+  cargarTiendaRecompensas();
 });
 
 // ============ VERIFICACIÓN DORADA ============
@@ -252,4 +257,49 @@ async function cargarHistorial() {
       </div>
     `;
   }).join("");
+}
+
+// ============ TIENDA DE RECOMPENSAS (Ox2 gratis -> tarjetas de regalo reales) ============
+
+async function cargarTiendaRecompensas() {
+  const { restanteMxn, agotado } = await obtenerEstadoCupoMensual();
+
+  estadoCupoRecompensas.textContent = agotado
+    ? "😔 El cupo de recompensas de este mes ya se agotó. Vuelve el próximo mes."
+    : `Quedan $${restanteMxn} MXN de cupo de recompensas este mes.`;
+
+  gridRecompensas.innerHTML = CATALOGO_RECOMPENSAS.map(r => `
+    <div style="border:1px solid var(--border); border-radius:var(--radius); padding:12px; text-align:center;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:4px;">${r.nombre}</div>
+      <div style="font-size:12px; color:var(--success); margin-bottom:8px;">${r.costoOx2} Ox2</div>
+      <button data-canjear-recompensa="${r.id}" ${agotado ? "disabled" : ""} style="width:100%; font-size:12px; padding:7px;">
+        ${agotado ? "Sin cupo" : "Canjear"}
+      </button>
+    </div>
+  `).join("");
+
+  gridRecompensas.querySelectorAll("[data-canjear-recompensa]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.canjearRecompensa;
+      const recompensa = CATALOGO_RECOMPENSAS.find(r => r.id === id);
+      if (!confirm(`¿Canjear ${recompensa.costoOx2} Ox2 por "${recompensa.nombre}"? Un administrador te contactará para entregarte el código.`)) return;
+
+      btn.disabled = true;
+      msgRecompensas.style.display = "none";
+      try {
+        await canjearRecompensa(usuarioActual.uid, usuarioActual.nombre, id);
+        msgRecompensas.textContent = "¡Listo! Tu canje quedó pendiente — un administrador te contactará pronto con tu código.";
+        msgRecompensas.className = "msg ok";
+        msgRecompensas.style.display = "block";
+        refrescarSaldo();
+        cargarHistorial();
+        cargarTiendaRecompensas();
+      } catch (err) {
+        msgRecompensas.textContent = err.message;
+        msgRecompensas.className = "msg error";
+        msgRecompensas.style.display = "block";
+        btn.disabled = false;
+      }
+    });
+  });
 }
