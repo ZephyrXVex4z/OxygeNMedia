@@ -7,6 +7,7 @@ import {
   query, where, orderBy, limit, startAfter, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 import { crearNotificacion } from "./notificaciones.js";
+import { otorgarOxPorLike, otorgarOxPorPublicar } from "./recompensas.js";
 
 // Extrae hashtags (#tema) y menciones (@usuario) de un texto, en minúsculas y sin símbolo
 function extraerHashtags(texto) {
@@ -40,6 +41,12 @@ export async function crearPublicacion({ autorId, autorNombre, autorFotoURL, tex
   // Resuelve menciones @username -> notificación a esa persona (si el username existe)
   if (usernamesMencionados.length > 0) {
     await notificarMenciones(usernamesMencionados, autorId, autorNombre, ref.id);
+  }
+
+  // Solo los posts ORIGINALES dan Ox2 de recompensa (no los reposts — si no, repostear en
+  // bucle sería una forma trivial de farmear Ox2 gratis sin aportar contenido real).
+  if (!repostDe) {
+    try { await otorgarOxPorPublicar(autorId); } catch (e) { /* si falla la recompensa, la publicación ya se creó igual */ }
   }
 
   return ref.id;
@@ -157,6 +164,7 @@ export async function alternarLike(pubId, uid, autorPubUid, autorPubNombre, miNo
   const refPub = doc(db, "publicaciones", pubId);
 
   let seAgrego = false;
+  let debeOtorgarRecompensa = false;
 
   await runTransaction(db, async (tx) => {
     const snapLike = await tx.get(refLike);
@@ -173,6 +181,17 @@ export async function alternarLike(pubId, uid, autorPubUid, autorPubNombre, miNo
       tx.set(refLike, { fecha: serverTimestamp() });
       tx.update(refPub, { likesCount: likesActual + 1 });
       seAgrego = true;
+
+      // El Ox2 de recompensa solo se otorga la PRIMERA vez que este uid le da like a
+      // esta publicación — sin esto, dar like/quitar like en bucle sobre el mismo post
+      // generaría Ox2 infinito (el documento de like se borra al quitar el like, así
+      // que el candado no puede vivir ahí; vive en la publicación, que nunca se borra
+      // por un simple unlike).
+      const yaDioRecompensa = (snapPub.data().uidsQueYaDieronOx || []).includes(uid);
+      if (!yaDioRecompensa) {
+        debeOtorgarRecompensa = true;
+        tx.update(refPub, { uidsQueYaDieronOx: [...(snapPub.data().uidsQueYaDieronOx || []), uid] });
+      }
     }
   });
 
@@ -185,6 +204,11 @@ export async function alternarLike(pubId, uid, autorPubUid, autorPubNombre, miNo
       texto: `A ${miNombre} le gustó tu publicación`,
       dataExtra: { pubId }
     });
+    // El Ox2 de recompensa es aparte de la notificación: si falla, el like ya quedó
+    // registrado igual (no queremos que un error de recompensa tumbe el like en sí).
+    if (debeOtorgarRecompensa) {
+      try { await otorgarOxPorLike(autorPubUid); } catch (e) { /* no crítico */ }
+    }
   }
 
   return seAgrego;
