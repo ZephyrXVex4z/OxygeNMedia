@@ -3,6 +3,7 @@
 
 import { db } from "./firebase-config.js";
 import { observarSesion, cuentaBloqueada } from "./auth.js";
+import { iniciarAyudaImagen } from "./ayuda-imagen.js";
 import {
   doc, getDoc, updateDoc, collection, addDoc, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -43,6 +44,7 @@ observarSesion((user, perfil) => {
   usuarioActual = { uid: user.uid };
   perfilActual = perfil;
   cargarDatosEnFormulario();
+  iniciarAyudaImagen();
   cargarRolesDisponibles().then(() => sincronizarRolesPendientesAprobados());
 });
 
