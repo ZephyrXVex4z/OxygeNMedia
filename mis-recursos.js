@@ -4,6 +4,7 @@
 
 import { db } from "./firebase-config.js";
 import { observarSesion, cuentaBloqueada } from "./auth.js";
+import { iniciarAyudaImagen } from "./ayuda-imagen.js";
 import {
   collection, doc, getDoc, getDocs, updateDoc, deleteDoc, setDoc,
   query, where
@@ -84,6 +85,7 @@ async function abrirEdicion(id) {
 
   msgEditar.style.display = "none";
   modalEditar.classList.remove("hidden");
+  iniciarAyudaImagen();
 }
 
 document.getElementById("btnCancelarEdicion").addEventListener("click", () => {
