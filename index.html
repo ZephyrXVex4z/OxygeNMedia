@@ -579,11 +579,20 @@ observarSesion((user, perfil) => {
 </script>
 
 <script>
+  <script>
+  // Registramos manualmente OneSignalSDKWorker.js (en vez de depender de que OneSignal
+  // lo haga solo) porque OneSignal únicamente auto-registra su service worker cuando el
+  // usuario YA dio permiso de notificaciones — si nunca lo activó, no se registraría
+  // nada, y como este mismo archivo también trae la caché de la PWA, ese usuario se
+  // quedaría sin caché offline. Registrándolo aquí de una vez, todos tienen el mismo
+  // service worker (con caché + soporte de push listo para cuando activen notificaciones),
+  // y como es un solo archivo en la raíz, no hay conflicto de scope con ningún otro.
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+      navigator.serviceWorker.register("OneSignalSDKWorker.js").catch(() => {});
     });
   }
+  </script>
 </script>
 </body>
 </html>
