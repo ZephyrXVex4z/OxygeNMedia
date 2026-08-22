@@ -4,6 +4,7 @@
 
 import { db } from "./firebase-config.js";
 import { observarSesion, cuentaBloqueada } from "./auth.js";
+import { iniciarAyudaImagen } from "./ayuda-imagen.js";
 import {
   collection, doc, addDoc, setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
@@ -24,6 +25,7 @@ observarSesion((user, perfil) => {
     return;
   }
   usuarioActual = { uid: user.uid, ...perfil };
+  iniciarAyudaImagen();
 });
 
 btnPublicar.addEventListener("click", async () => {
