@@ -11,6 +11,7 @@ import { listarReportesPendientes, listarReportesResueltos, resolverReporte, des
 import { adminOtorgarVerificacionDorada, adminOtorgarVerificacionAzul, insigniaVerificado } from "./verificados.js";
 import { borrarPublicacion, borrarComentario } from "./muro.js";
 import { iniciarAyudaImagen } from "./ayuda-imagen.js";
+import { listarCanjesPendientes, marcarCanjeEntregado, obtenerEstadoCupoMensual, PRESUPUESTO_MENSUAL_MXN } from "./recompensas.js";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, setDoc,
   query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove
@@ -44,6 +45,7 @@ observarSesion((user, perfil) => {
   cargarReportes();
   cargarVerificados();
   iniciarAyudaImagen();
+  cargarRecompensasAdmin();
 });
 
 // --- Tabs ---
@@ -61,6 +63,7 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("tabNovedades").classList.add("hidden");
     document.getElementById("tabReportes").classList.add("hidden");
     document.getElementById("tabVerificaciones").classList.add("hidden");
+    document.getElementById("tabRecompensas").classList.add("hidden");
     document.getElementById("tabMantenimiento").classList.add("hidden");
     document.getElementById("tab" + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).classList.remove("hidden");
   });
@@ -1239,4 +1242,42 @@ function mostrarMsgMantenimiento(texto, tipo) {
   msgMantenimiento.className = "msg " + tipo;
   msgMantenimiento.style.display = "block";
   setTimeout(() => { msgMantenimiento.style.display = "none"; }, 3500);
+}
+
+// ============ RECOMPENSAS (Ox2 gratis -> tarjetas de regalo reales) ============
+
+const estadoCupoAdmin = document.getElementById("estadoCupoAdmin");
+const tablaCanjesPendientes = document.getElementById("tablaCanjesPendientes");
+const emptyCanjesPendientes = document.getElementById("emptyCanjesPendientes");
+
+async function cargarRecompensasAdmin() {
+  const { gastadoMxn, restanteMxn, agotado } = await obtenerEstadoCupoMensual();
+  estadoCupoAdmin.innerHTML = agotado
+    ? `<span style="color:var(--danger);">🔴 Cupo agotado: $${gastadoMxn} / $${PRESUPUESTO_MENSUAL_MXN} MXN este mes</span>`
+    : `<span style="color:var(--success);">🟢 $${gastadoMxn} / $${PRESUPUESTO_MENSUAL_MXN} MXN gastados este mes (quedan $${restanteMxn})</span>`;
+
+  const canjes = await listarCanjesPendientes();
+  emptyCanjesPendientes.classList.toggle("hidden", canjes.length > 0);
+
+  tablaCanjesPendientes.innerHTML = canjes.map(c => {
+    const fecha = c.fecha ? c.fecha.toDate().toLocaleDateString("es-MX", { day: "numeric", month: "short" }) : "";
+    return `
+      <tr>
+        <td>${fecha}</td>
+        <td>${c.nombre}</td>
+        <td>${c.recompensaNombre}</td>
+        <td>${c.costoOx2} Ox2</td>
+        <td><button class="success" data-entregar-canje="${c.id}" data-nombre="${c.nombre}" data-recompensa="${c.recompensaNombre}">Marcar entregado</button></td>
+      </tr>
+    `;
+  }).join("");
+
+  tablaCanjesPendientes.querySelectorAll("[data-entregar-canje]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const codigo = prompt(`Código que le entregaste a ${btn.dataset.nombre} para "${btn.dataset.recompensa}" (opcional, para tu registro):`);
+      if (codigo === null) return; // canceló
+      await marcarCanjeEntregado(btn.dataset.entregarCanje, adminActual.uid, adminActual.nombre, codigo);
+      cargarRecompensasAdmin();
+    });
+  });
 }
