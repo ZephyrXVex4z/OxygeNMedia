@@ -65,3 +65,9 @@ export async function marcarTodasLeidas(lista) {
 export async function borrarNotificacion(notifId) {
   await deleteDoc(doc(db, "notificaciones", notifId));
 }
+
+// Borra TODAS las notificaciones del usuario de una sola vez (equivalente a
+// marcarTodasLeidas, pero eliminándolas por completo en vez de solo marcarlas).
+export async function borrarTodasLasNotificaciones(lista) {
+  await Promise.all(lista.map(n => deleteDoc(doc(db, "notificaciones", n.id))));
+}
