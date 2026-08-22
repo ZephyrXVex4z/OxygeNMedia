@@ -7,10 +7,10 @@ import { observarSesion, cuentaBloqueada } from "./auth.js";
 const NUMERO_WHATSAPP = "529844681306";
 
 const DENOMINACIONES = [
-  { usd: 5,  creditos: 200,  bono: 10,  imagen: "giftcard-5.png" },
-  { usd: 10, creditos: 400,  bono: 20,  imagen: "giftcard-10.png" },
-  { usd: 20, creditos: 800,  bono: 40,  imagen: "giftcard-20.png" },
-  { usd: 50, creditos: 2000, bono: 100, imagen: "giftcard-50.png" }
+  { mxn: 20,  creditos: 80,  bono: 4,  imagen: "giftcard-5.png" },
+  { mxn: 50,  creditos: 200, bono: 10, imagen: "giftcard-10.png" },
+  { mxn: 100, creditos: 400, bono: 20, imagen: "giftcard-20.png" },
+  { mxn: 200, creditos: 800, bono: 40, imagen: "giftcard-50.png" }
 ];
 
 const gridTarjetas = document.getElementById("gridTarjetas");
@@ -31,14 +31,14 @@ function renderTarjetas(nombreUsuario) {
     return `
       <div class="gc-card">
         <div class="gc-image-wrap">
-          <img src="${d.imagen}" alt="Tarjeta de regalo $${d.usd} USD" onerror="this.classList.add('broken')">
+          <img src="${d.imagen}" alt="Tarjeta de regalo $${d.mxn} MXN" onerror="this.classList.add('broken')">
           <div class="gc-fallback">
             <span style="font-size:28px;">🎁</span>
             <span>Imagen no disponible</span>
           </div>
         </div>
         <div class="gc-body">
-          <div class="gc-price">$${d.usd} USD</div>
+          <div class="gc-price">$${d.mxn} MXN</div>
           <div class="gc-credits"><b>${d.creditos} Ox2</b> de crédito</div>
           <div class="gc-bonus">✦ +${d.bono} Ox2 de bono — recibes ${total} en total</div>
           <a href="${linkWhatsapp}" target="_blank" rel="noopener" class="gc-buy-btn">
@@ -52,6 +52,6 @@ function renderTarjetas(nombreUsuario) {
 
 function construirMensaje(d, nombreUsuario) {
   const saludo = nombreUsuario ? `Hola, soy ${nombreUsuario}.` : "Hola,";
-  return `${saludo} Quisiera comprar una tarjeta de regalo Ox2 de $${d.usd} USD (${d.creditos} + ${d.bono} de bono = ${d.creditos + d.bono} Ox2).`;
+  return `${saludo} Quisiera comprar una tarjeta de regalo Ox2 de $${d.mxn} MXN (${d.creditos} + ${d.bono} de bono = ${d.creditos + d.bono} Ox2).`;
 }
 
