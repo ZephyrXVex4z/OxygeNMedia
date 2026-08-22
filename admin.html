@@ -148,6 +148,7 @@
     <div class="tab" data-tab="novedades">Novedades</div>
     <div class="tab" data-tab="reportes">Reportes</div>
     <div class="tab" data-tab="verificaciones">Verificaciones</div>
+    <div class="tab" data-tab="recompensas">Recompensas</div>
     <div class="tab" data-tab="mantenimiento">Mantenimiento</div>
   </div>
 
@@ -381,6 +382,27 @@
           <tbody id="tablaVerificados"></tbody>
         </table>
         <div class="empty hidden" id="emptyVerificados">Todavía no hay usuarios verificados.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Recompensas -->
+    <div id="tabRecompensas" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Cupo mensual de recompensas</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">
+          Presupuesto máximo en tarjetas de regalo reales por mes. Se resetea automáticamente cada mes.
+        </p>
+        <div id="estadoCupoAdmin" style="font-size:15px; font-weight:600;">Cargando...</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Canjes pendientes de entregar</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">Entrega el código real (Xbox/Microsoft Store) por WhatsApp u otro medio, y márcalo aquí.</p>
+        <table>
+          <thead><tr><th>Fecha</th><th>Usuario</th><th>Recompensa</th><th>Costo Ox2</th><th>Acción</th></tr></thead>
+          <tbody id="tablaCanjesPendientes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyCanjesPendientes">No hay canjes pendientes. 🎉</div>
       </div>
     </div>
 
