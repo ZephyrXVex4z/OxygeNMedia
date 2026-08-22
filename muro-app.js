@@ -12,6 +12,7 @@ import {
 } from "./muro.js";
 import { insigniaVerificado } from "./verificados.js";
 import { crearReporte, TIPO_OBJETIVO, MOTIVOS_POR_TIPO } from "./reportes.js";
+import { iniciarAyudaImagen } from "./ayuda-imagen.js";
 import { collection, getDocs, query, where, limit, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
 // Caché simple de perfiles de autores (uid -> {rol, verificadoDorado, verificadoAzul})
@@ -102,7 +103,10 @@ function limpiarBorrador() {
 
 btnToggleImagen.addEventListener("click", () => {
   extraImagen.classList.toggle("hidden");
-  if (!extraImagen.classList.contains("hidden")) inputImagenURL.focus();
+  if (!extraImagen.classList.contains("hidden")) {
+    inputImagenURL.focus();
+    iniciarAyudaImagen();
+  }
 });
 
 inputImagenURL.addEventListener("input", () => {
