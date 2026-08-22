@@ -10,6 +10,7 @@ import { activarMantenimiento, desactivarMantenimiento, obtenerEstadoMantenimien
 import { listarReportesPendientes, listarReportesResueltos, resolverReporte, descartarReporte } from "./reportes.js";
 import { adminOtorgarVerificacionDorada, adminOtorgarVerificacionAzul, insigniaVerificado } from "./verificados.js";
 import { borrarPublicacion, borrarComentario } from "./muro.js";
+import { iniciarAyudaImagen } from "./ayuda-imagen.js";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, setDoc,
   query, where, orderBy, serverTimestamp, arrayUnion, arrayRemove
@@ -42,6 +43,7 @@ observarSesion((user, perfil) => {
   cargarEstadoMantenimiento();
   cargarReportes();
   cargarVerificados();
+  iniciarAyudaImagen();
 });
 
 // --- Tabs ---
