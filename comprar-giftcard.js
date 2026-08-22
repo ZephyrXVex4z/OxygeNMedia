@@ -7,10 +7,10 @@ import { observarSesion, cuentaBloqueada } from "./auth.js";
 const NUMERO_WHATSAPP = "529844681306";
 
 const DENOMINACIONES = [
-  { mxn: 20,  creditos: 80,  bono: 4,  imagen: "giftcard-5.png" },
-  { mxn: 50,  creditos: 200, bono: 10, imagen: "giftcard-10.png" },
-  { mxn: 100, creditos: 400, bono: 20, imagen: "giftcard-20.png" },
-  { mxn: 200, creditos: 800, bono: 40, imagen: "giftcard-50.png" }
+  { mxn: 20,  creditos: 80,  bono: 4,  imagen: "giftcard-20mx.png" },
+  { mxn: 50,  creditos: 200, bono: 10, imagen: "giftcard-50mx.png" },
+  { mxn: 100, creditos: 400, bono: 20, imagen: "giftcard-100mx.png" },
+  { mxn: 200, creditos: 800, bono: 40, imagen: "giftcard-200mx.png" }
 ];
 
 const gridTarjetas = document.getElementById("gridTarjetas");
