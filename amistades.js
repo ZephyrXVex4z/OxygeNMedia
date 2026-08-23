@@ -7,6 +7,7 @@ import {
   query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 import { crearNotificacion } from "./notificaciones.js";
+import { hayBloqueoEntre } from "./bloqueos.js";
 
 // ID determinístico: siempre los dos UIDs ordenados alfabéticamente, unidos por "_"
 // Así nunca se duplica una amistad sin importar quién la consulte o cree primero.
@@ -25,6 +26,8 @@ export async function obtenerEstadoAmistad(miUid, otroUid) {
 
 // Envía una solicitud de amistad y genera la notificación correspondiente
 export async function enviarSolicitudAmistad(miUid, miNombre, otroUid, otroNombre) {
+  if (await hayBloqueoEntre(miUid, otroUid)) throw new Error("No puedes enviar solicitud a este usuario.");
+
   const id = idAmistad(miUid, otroUid);
   await setDoc(doc(db, "amistades", id), {
     usuarios: [miUid, otroUid],
@@ -79,5 +82,17 @@ export async function listarAmigos(miUid) {
     }
   }
   return amigos;
+}
+
+// Cuenta cuántos amigos tiene un usuario, sin traer los perfiles completos
+// (más rápido que listarAmigos() cuando solo se necesita el número, ej. para
+// mostrarlo junto al de seguidores en un perfil).
+export async function contarAmigos(uid) {
+  const snap = await getDocs(query(
+    collection(db, "amistades"),
+    where("usuarios", "array-contains", uid),
+    where("estado", "==", "aceptada")
+  ));
+  return snap.size;
 }
 
