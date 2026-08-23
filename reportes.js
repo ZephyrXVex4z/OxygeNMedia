@@ -15,7 +15,8 @@ import { registrarLog } from "./logs.js";
 export const TIPO_OBJETIVO = {
   USUARIO: "usuario",
   PUBLICACION: "publicacion",
-  COMENTARIO: "comentario"
+  COMENTARIO: "comentario",
+  MENSAJE_CHAT: "mensaje_chat"
 };
 
 // Motivos predefinidos que se muestran en el formulario de reporte, agrupados por
@@ -45,30 +46,49 @@ export const MOTIVOS_POR_TIPO = {
     "Acoso o intimidación",
     "Spam",
     "Otro"
+  ],
+  mensaje_chat: [
+    "Acoso o intimidación",
+    "Amenazas",
+    "Contenido inapropiado o explícito",
+    "Discurso de odio o discriminación",
+    "Suplantación de identidad",
+    "Otro"
   ]
 };
 
 // Crea un nuevo reporte. "objetivo" identifica qué se reporta:
-//   { tipo: "usuario"|"publicacion"|"comentario", id, autorUid, autorNombre, extraId }
-// "extraId" es opcional y se usa para comentarios (el id de la publicación que lo contiene),
-// porque un comentario vive dentro de la subcolección de una publicación específica.
+//   { tipo: "usuario"|"publicacion"|"comentario"|"mensaje_chat", id, autorUid, autorNombre, extraId }
+// "extraId" es opcional y se usa para comentarios (el id de la publicación que lo contiene)
+// y para mensajes de chat (el id del chat al que pertenece), porque ambos viven en una
+// subcolección de otro documento.
+//
+// "respaldoMensaje" es EXCLUSIVO de mensaje_chat: una copia textual del mensaje, tomada
+// en el momento del reporte, ANTES de guardar nada. Esto es a propósito — un mensaje de
+// chat se puede editar o "eliminar" (marcar eliminado, o incluso borrar el documento) en
+// cualquier momento después de que ocurrió el acoso, y si el reporte solo guardara el ID
+// del mensaje, el admin llegaría a revisar un mensaje ya vacío o inexistente, sin poder
+// verificar nada. Al copiar el texto AQUÍ, dentro del propio documento de reporte (que
+// solo el admin puede leer o modificar, según firestore.rules), el respaldo sobrevive
+// aunque el remitente borre o edite el mensaje original después.
 export async function crearReporte({
   reportanteUid, reportanteNombre,
   objetivoTipo, objetivoId, objetivoAutorUid, objetivoAutorNombre, objetivoExtraId = null,
-  motivo, infoAdicional = ""
+  motivo, infoAdicional = "", respaldoMensaje = null
 }) {
   if (!motivo) throw new Error("Selecciona un motivo para el reporte.");
   if (reportanteUid === objetivoAutorUid) throw new Error("No puedes reportar tu propio contenido.");
 
   await addDoc(collection(db, "reportes"), {
     reportanteUid, reportanteNombre,
-    objetivoTipo,           // "usuario" | "publicacion" | "comentario"
-    objetivoId,             // uid del usuario, o id de la publicación/comentario
-    objetivoExtraId,        // id de la publicación padre, solo si objetivoTipo === "comentario"
+    objetivoTipo,           // "usuario" | "publicacion" | "comentario" | "mensaje_chat"
+    objetivoId,             // uid del usuario, id de la publicación/comentario, o id del mensaje
+    objetivoExtraId,        // id de la publicación padre (comentario), o id del chat (mensaje_chat)
     objetivoAutorUid,
     objetivoAutorNombre,
     motivo,
     infoAdicional,
+    respaldoMensaje,        // copia inmutable del texto del mensaje, null si no aplica
     estado: "pendiente",    // "pendiente" | "resuelto" | "descartado"
     resolucion: null,       // texto de qué decidió el admin, se llena al resolver
     adminUid: null,
