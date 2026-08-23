@@ -14,6 +14,7 @@ import {
   query, where, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 import { crearNotificacion } from "./notificaciones.js";
+import { hayBloqueoEntre } from "./bloqueos.js";
 
 function idSeguimiento(seguidorUid, seguidoUid) {
   return `${seguidorUid}_${seguidoUid}`;
@@ -29,6 +30,7 @@ export async function siguiendoA(miUid, otroUid) {
 // (siguiendoCount de quien sigue, seguidoresCount de quien es seguido) atómicamente.
 export async function seguirUsuario(miUid, miNombre, otroUid, otroNombre) {
   if (miUid === otroUid) throw new Error("No puedes seguirte a ti mismo.");
+  if (await hayBloqueoEntre(miUid, otroUid)) throw new Error("No puedes seguir a este usuario.");
 
   const refRelacion = doc(db, "seguidores", idSeguimiento(miUid, otroUid));
   const refMi = doc(db, "usuarios", miUid);
