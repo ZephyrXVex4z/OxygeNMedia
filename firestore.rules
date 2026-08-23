@@ -337,11 +337,16 @@ service cloud.firestore {
       // Cualquier usuario aprobado puede leer el muro
       allow read: if esAprobadoUsuario() || esAdminUsuario();
 
-      // Cualquier usuario aprobado puede publicar, siempre que figure como su propio autor
+      // Cualquier usuario aprobado puede publicar, siempre que figure como su propio autor.
+      // El texto tiene un límite de 750 caracteres — sin esto, cualquiera podría escribir
+      // desde la consola del navegador un texto de varios MB, saltándose el maxlength del
+      // HTML (que solo protege el formulario normal, no una escritura directa a Firestore).
       allow create: if esAprobadoUsuario() &&
                       request.resource.data.autorId == request.auth.uid &&
                       request.resource.data.likesCount == 0 &&
-                      request.resource.data.comentariosCount == 0;
+                      request.resource.data.comentariosCount == 0 &&
+                      request.resource.data.texto is string &&
+                      request.resource.data.texto.size() <= 750;
 
       // El autor puede editar su propia publicación (texto/imagen), sin tocar los contadores
       // directamente (esos solo cambian vía la lógica de likes/comentarios de abajo).
@@ -375,7 +380,10 @@ service cloud.firestore {
 
       match /comentarios/{comentarioId} {
         allow read: if esAprobadoUsuario() || esAdminUsuario();
-        allow create: if esAprobadoUsuario() && request.resource.data.autorId == request.auth.uid;
+        allow create: if esAprobadoUsuario() &&
+                        request.resource.data.autorId == request.auth.uid &&
+                        request.resource.data.texto is string &&
+                        request.resource.data.texto.size() <= 500;
         // El autor del comentario o el admin pueden borrarlo (moderación)
         allow delete: if esAdminUsuario() || (esAprobadoUsuario() && resource.data.autorId == request.auth.uid);
       }
@@ -432,6 +440,32 @@ service cloud.firestore {
 
       // Solo el admin puede publicar, editar o borrar actualizaciones
       allow create, update, delete: if esAdminUsuario();
+    }
+
+    match /bloqueos/{bloqueoId} {
+      function esAprobadoUsuario() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.aprobado == true;
+      }
+
+      // Cualquiera puede consultar UN documento específico por su ID determinístico
+      // ("{deUid}_{aUid}") con getDoc — eso es lo que necesita hayBloqueoEntre() antes
+      // de dejar chatear/seguir a alguien: solo confirma "¿existe este bloqueo puntual?",
+      // sin exponer la lista completa de bloqueos de nadie.
+      allow get: if esAprobadoUsuario();
+
+      // Para listar (query), solo puedes traer TUS PROPIOS bloqueos — usado por
+      // listarBloqueados() en una futura pantalla de "usuarios bloqueados".
+      allow list: if esAprobadoUsuario() && request.query.where.deUid == request.auth.uid;
+
+      // Solo puedes crear un bloqueo donde TÚ eres quien bloquea
+      allow create: if esAprobadoUsuario() &&
+                      request.resource.data.deUid == request.auth.uid &&
+                      request.resource.data.aUid != request.auth.uid;
+
+      // Solo puedes borrar tu propio bloqueo (desbloquear)
+      allow delete: if esAprobadoUsuario() && resource.data.deUid == request.auth.uid;
+      allow update: if false;
     }
 
     match /seguidores/{relacionId} {
