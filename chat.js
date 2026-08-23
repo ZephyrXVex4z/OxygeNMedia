@@ -3,6 +3,8 @@
 
 import { db } from "./firebase-config.js";
 import { observarSesion, cuentaBloqueada } from "./auth.js";
+import { hayBloqueoEntre } from "./bloqueos.js";
+import { crearReporte, TIPO_OBJETIVO, MOTIVOS_POR_TIPO } from "./reportes.js";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs,
   query, where, orderBy, serverTimestamp, onSnapshot,
@@ -139,9 +141,15 @@ function abrirChat(chatId, chatData, nombreMostrar) {
         return;
       }
 
-      const menuBtn = (esMio || puedoBorrar)
-        ? `<span class="msg-menu-btn" data-abrir-menu="${docSnap.id}">⋮</span>`
-        : "";
+      // Guardamos texto y autor directamente en el dataset de la burbuja: si el usuario
+      // reporta este mensaje, necesitamos capturar el texto EXACTO que se está mostrando
+      // ahora mismo, sin depender de una consulta nueva a Firestore que podría llegar
+      // tarde (el remitente pudo editarlo o borrarlo justo después).
+      bubble.dataset.textoActual = m.texto;
+      bubble.dataset.autorId = m.autorId;
+      bubble.dataset.autorNombre = m.autorNombre || "";
+
+      const menuBtn = `<span class="msg-menu-btn" data-abrir-menu="${docSnap.id}">⋮</span>`;
 
       bubble.innerHTML = `
         ${!esMio && chatData.tipo === "grupo" ? `<span class="autor">${m.autorNombre}</span>` : ""}
@@ -151,6 +159,7 @@ function abrirChat(chatId, chatData, nombreMostrar) {
         <div class="msg-menu hidden" id="menu-${docSnap.id}">
           ${esMio ? `<button data-editar="${docSnap.id}">Editar</button>` : ""}
           ${puedoBorrar ? `<button data-borrar="${docSnap.id}" class="danger-text">Eliminar</button>` : ""}
+          ${!esMio ? `<button data-reportar-mensaje="${docSnap.id}" class="danger-text">🚩 Reportar</button>` : ""}
         </div>
       `;
       messagesDiv.appendChild(bubble);
@@ -186,6 +195,20 @@ function conectarAccionesMensajes() {
       await updateDoc(doc(db, "chats", chatActivoId, "mensajes", btn.dataset.borrar), {
         eliminado: true,
         texto: ""
+      });
+    });
+  });
+
+  messagesDiv.querySelectorAll("[data-reportar-mensaje]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const bubble = btn.closest(".msg-bubble");
+      abrirModalReporteMensaje({
+        mensajeId: btn.dataset.reportarMensaje,
+        chatId: chatActivoId,
+        textoActual: bubble.dataset.textoActual,
+        autorId: bubble.dataset.autorId,
+        autorNombre: bubble.dataset.autorNombre
       });
     });
   });
@@ -242,6 +265,16 @@ function escapeHtml(str) {
 async function enviarMensaje() {
   const texto = inputMensaje.value.trim();
   if (!texto || !chatActivoId) return;
+
+  // En chats privados, si cualquiera de los dos bloqueó al otro, no se puede enviar
+  // (mismo criterio en ambos sentidos: ni el bloqueador ni el bloqueado pueden escribirse).
+  if (chatActivoData.tipo === "privado") {
+    const otroUid = chatActivoData.miembros.find(m => m !== usuarioActual.uid);
+    if (otroUid && await hayBloqueoEntre(usuarioActual.uid, otroUid)) {
+      alert("No puedes enviar mensajes en esta conversación.");
+      return;
+    }
+  }
 
   inputMensaje.value = "";
 
@@ -317,6 +350,12 @@ buscarUsuarioPrivado.addEventListener("input", () => {
 });
 
 async function iniciarChatPrivado(otroUid, otroNombre) {
+  if (await hayBloqueoEntre(usuarioActual.uid, otroUid)) {
+    modalNuevoChat.classList.add("hidden");
+    alert("No puedes iniciar un chat con este usuario.");
+    return;
+  }
+
   // Revisa si ya existe un chat privado entre estos dos usuarios
   const q = query(
     collection(db, "chats"),
@@ -499,3 +538,84 @@ document.querySelectorAll("[data-close-modal]").forEach(btn => {
     document.getElementById(btn.dataset.closeModal).classList.add("hidden");
   });
 });
+
+// ============ REPORTAR MENSAJE DE CHAT (con respaldo a prueba de borrado) ============
+
+function abrirModalReporteMensaje({ mensajeId, chatId, textoActual, autorId, autorNombre }) {
+  let modal = document.getElementById("modalReporteMensaje");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modalReporteMensaje";
+    modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;";
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) modal.innerHTML = ""; });
+  }
+
+  const motivos = MOTIVOS_POR_TIPO.mensaje_chat;
+  modal.innerHTML = `
+    <div style="background:var(--card, #1a2233);border:1px solid var(--border, #2a3550);border-radius:var(--radius, 14px);padding:22px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;color:var(--text, #e8ecf5);">
+      <h3 style="margin-top:0;">Reportar mensaje</h3>
+      <p style="font-size:12px;color:var(--text-dim, #8b96b0);margin-top:-8px;">
+        Vas a reportar un mensaje de <strong>${autorNombre || "este usuario"}</strong>. Se guarda una copia
+        del mensaje junto con tu reporte, así que aunque lo edite o borre después, un administrador
+        podrá seguir viéndolo tal como está ahora.
+      </p>
+
+      <div style="background:var(--input-bg, #10182a);border:1px solid var(--border, #2a3550);border-radius:var(--radius, 14px);padding:10px 12px;font-size:13px;margin-bottom:14px;white-space:pre-wrap;">${(textoActual || "").replace(/</g, "&lt;")}</div>
+
+      <label style="font-size:13px;color:var(--text-dim, #8b96b0);display:block;margin-bottom:4px;">Motivo</label>
+      <select id="selectMotivoReporteMensaje" style="width:100%;padding:10px 12px;border-radius:var(--radius,14px);border:1px solid var(--border,#2a3550);background:var(--input-bg,#10182a);color:inherit;font-size:14px;margin-bottom:12px;">
+        <option value="">Selecciona un motivo...</option>
+        ${motivos.map(m => `<option value="${m}">${m}</option>`).join("")}
+      </select>
+
+      <label style="font-size:13px;color:var(--text-dim, #8b96b0);display:block;margin-bottom:4px;">Proporcione más información (opcional)</label>
+      <textarea id="inputInfoReporteMensaje" placeholder="Contexto adicional que quieras dar" style="width:100%;min-height:70px;padding:10px 12px;border-radius:var(--radius,14px);border:1px solid var(--border,#2a3550);background:var(--input-bg,#10182a);color:inherit;font-size:14px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
+
+      <div id="errorReporteMensaje" style="display:none;color:var(--danger,#e35d5d);font-size:12px;margin-bottom:10px;"></div>
+
+      <div style="display:flex;gap:8px;">
+        <button id="btnCancelarReporteMensaje" type="button" class="secondary" style="flex:1;">Cancelar</button>
+        <button id="btnEnviarReporteMensaje" type="button" style="flex:1;">Enviar reporte</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("btnCancelarReporteMensaje").addEventListener("click", () => { modal.innerHTML = ""; });
+  document.getElementById("btnEnviarReporteMensaje").addEventListener("click", async () => {
+    const select = document.getElementById("selectMotivoReporteMensaje");
+    const info = document.getElementById("inputInfoReporteMensaje");
+    const errorEl = document.getElementById("errorReporteMensaje");
+    const btn = document.getElementById("btnEnviarReporteMensaje");
+
+    if (!select.value) {
+      errorEl.textContent = "Selecciona un motivo antes de enviar.";
+      errorEl.style.display = "block";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+    try {
+      await crearReporte({
+        reportanteUid: usuarioActual.uid,
+        reportanteNombre: usuarioActual.nombre,
+        objetivoTipo: TIPO_OBJETIVO.MENSAJE_CHAT,
+        objetivoId: mensajeId,
+        objetivoExtraId: chatId,
+        objetivoAutorUid: autorId,
+        objetivoAutorNombre: autorNombre,
+        motivo: select.value,
+        infoAdicional: info.value.trim(),
+        respaldoMensaje: textoActual || ""
+      });
+      modal.innerHTML = "";
+      alert("Reporte enviado con una copia del mensaje. Gracias por ayudar a mantener segura la comunidad.");
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Enviar reporte";
+    }
+  });
+}
