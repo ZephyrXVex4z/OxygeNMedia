@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solicitudes de amistad — OxygeNMedia</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#5b8def">
+<script src="/tema-inline.js"></script>
+<style>
+  :root {
+    --bg: #0f1420; --card: #1a2233; --border: #2a3550; --accent: #5b8def;
+    --accent-hover: #4a7ad9; --text: #e8ecf5; --text-dim: #8b96b0;
+    --success: #4caf7d; --danger: #e35d5d;
+    --radius: 14px;
+    --card-shadow: none;
+    --input-bg: #10182a;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-weight-heading: 700;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font-body);
+    background: var(--bg); color: var(--text); min-height: 100vh;
+  }
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 17px; margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: var(--font-weight-heading); }
+  button {
+    font-family: var(--font-body);
+    background: var(--accent); color: white; border: none; padding: 9px 14px;
+    border-radius: var(--radius); font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  button:hover { background: var(--accent-hover); }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  button.danger { background: var(--danger); }
+  .container { max-width: 640px; margin: 24px auto; padding: 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card h3 { margin-top: 0; display: flex; align-items: center; gap: 8px; }
+  .count-badge {
+    background: var(--accent); color: white; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px;
+  }
+
+  .solicitud-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 8px; border-bottom: 1px solid var(--border);
+  }
+  .solicitud-item:last-child { border-bottom: none; }
+  .solicitud-avatar {
+    width: 46px; height: 46px; border-radius: 50%; object-fit: cover;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: white; flex-shrink: 0;
+  }
+  .solicitud-info { flex: 1; min-width: 0; }
+  .solicitud-info .nombre { font-size: 14px; font-weight: 600; }
+  .solicitud-info .username { font-size: 12px; color: var(--text-dim); }
+  .solicitud-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .solicitud-actions button { padding: 7px 10px; font-size: 12px; }
+
+  .empty { text-align: center; color: var(--text-dim); padding: 24px 10px; font-size: 13px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🤝 Solicitudes de amistad</h1>
+  <a href="/"><button class="secondary">Volver al sitio</button></a>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h3>Recibidas <span class="count-badge hidden" id="countRecibidas">0</span></h3>
+    <div id="listaRecibidas"></div>
+    <div class="empty hidden" id="emptyRecibidas">No tienes solicitudes pendientes por revisar.</div>
+  </div>
+
+  <div class="card">
+    <h3>Enviadas</h3>
+    <div id="listaEnviadas"></div>
+    <div class="empty hidden" id="emptyEnviadas">No has enviado solicitudes que sigan pendientes.</div>
+  </div>
+
+</div>
+
+<script type="module" src="/solicitudes.js"></script>
+</body>
+</html>

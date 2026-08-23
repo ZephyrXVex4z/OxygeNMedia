@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Admin — OxygeNMedia</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#5b8def">
+<script src="/tema-inline.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --card: #1a2233;
+    --border: #2a3550;
+    --accent: #5b8def;
+    --accent-hover: #4a7ad9;
+    --text: #e8ecf5;
+    --text-dim: #8b96b0;
+    --danger: #e35d5d;
+    --success: #4caf7d;
+    --warn: #e0a941;
+    --radius: 14px;
+    --card-shadow: none;
+    --input-bg: #10182a;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-weight-heading: 700;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    overscroll-behavior: none;
+  }
+  .app-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+  .content-area { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 17px; margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: var(--font-weight-heading); }
+  button {
+    font-family: var(--font-body);
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 9px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:hover { background: var(--accent-hover); }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  button.secondary:hover { background: var(--card); }
+  button.danger { background: var(--danger); }
+  button.success { background: var(--success); }
+  .tabs {
+    display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--border);
+    overflow-x: auto; -webkit-overflow-scrolling: touch; flex-shrink: 0;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 10px 14px;
+    cursor: pointer;
+    color: var(--text-dim);
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .content { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  .hidden { display: none !important; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  label { font-size: 12px; color: var(--text-dim); display: block; margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  textarea { min-height: 70px; resize: vertical; font-family: inherit; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .checkbox-row input { width: auto; margin: 0; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { color: var(--text-dim); font-weight: 600; }
+  .badge { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 999px; }
+  .badge.gratis { background: rgba(76,175,125,0.15); color: var(--success); }
+  .badge.pago { background: rgba(224,169,65,0.15); color: var(--warn); }
+  .badge.publico { background: rgba(91,141,239,0.15); color: var(--accent); }
+  .badge.privado { background: rgba(139,150,176,0.15); color: var(--text-dim); }
+  .row-actions { display: flex; gap: 6px; }
+  .empty { color: var(--text-dim); text-align: center; padding: 30px; }
+  .denied { max-width: 480px; margin: 100px auto; text-align: center; }
+  .msg { font-size: 13px; padding: 8px 12px; border-radius: var(--radius); margin-bottom: 12px; display: none; }
+  .msg.ok { background: rgba(76,175,125,0.12); color: var(--success); }
+  .msg.err { background: rgba(227,93,93,0.12); color: var(--danger); }
+  .icon-inline-sm-admin { width: 13px; height: 13px; vertical-align: -2px; object-fit: contain; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+<header>
+  <h1><img src="/panel-admin-32.png" style="width:22px;height:22px;vertical-align:-5px;"> Panel Admin</h1>
+  <div>
+    <a href="/"><button class="secondary">Ver sitio</button></a>
+    <button class="secondary" id="btnLogout">Salir</button>
+  </div>
+</header>
+
+<div class="content-area">
+<div class="denied hidden" id="deniedView">
+  <h2>Acceso restringido</h2>
+  <p style="color:var(--text-dim)">Esta sección es solo para administradores.</p>
+  <a href="/"><button>Volver al sitio</button></a>
+</div>
+
+<div id="adminPanel" class="hidden">
+  <div class="tabs">
+    <div class="tab active" data-tab="recursos">Recursos</div>
+    <div class="tab" data-tab="usuarios">Usuarios pendientes</div>
+    <div class="tab" data-tab="todos">Todos los usuarios</div>
+    <div class="tab" data-tab="roles">Roles pendientes</div>
+    <div class="tab" data-tab="juegos">Juegos pendientes</div>
+    <div class="tab" data-tab="registro">Registro</div>
+    <div class="tab" data-tab="tarjetas">Tarjetas de regalo</div>
+    <div class="tab" data-tab="novedades">Novedades</div>
+    <div class="tab" data-tab="reportes">Reportes</div>
+    <div class="tab" data-tab="verificaciones">Verificaciones</div>
+    <div class="tab" data-tab="recompensas">Recompensas</div>
+    <div class="tab" data-tab="mantenimiento">Mantenimiento</div>
+  </div>
+
+  <div class="content">
+
+    <!-- TAB: Recursos -->
+    <div id="tabRecursos">
+      <div class="card">
+        <h3 id="formTitulo">Nuevo recurso</h3>
+        <div class="msg" id="msgRecurso"></div>
+        <input type="hidden" id="recursoId">
+        <div class="form-grid">
+          <div class="full">
+            <label>Título</label>
+            <input type="text" id="rTitulo" placeholder="Ej. Tarea de Química - Estequiometría">
+          </div>
+          <div class="full">
+            <label>Descripción corta (se muestra en la tarjeta)</label>
+            <textarea id="rDescripcion" placeholder="Breve resumen visible para todos"></textarea>
+          </div>
+          <div class="full">
+            <label>Contenido completo (solo visible si tiene acceso)</label>
+            <textarea id="rContenido" placeholder="Aquí va el contenido real: respuestas, información, enlaces, etc."></textarea>
+          </div>
+          <div class="full">
+            <label>URL de imagen del contenido (opcional — solo se ve si el usuario tiene acceso, ej. foto de apuntes/respuestas)</label>
+            <input type="text" id="rImagenContenidoURL" placeholder="https://i.imgur.com/ejemplo.jpg">
+            <button type="button" class="btn-ayuda-imagen secondary" data-target="rImagenContenidoURL" style="margin-top:6px; font-size:12px; padding:7px 10px;">¿No sabes cómo subir una imagen? Toca aquí</button>
+            <img id="rImagenContenidoPreview" class="hidden" style="max-width:100%; max-height:160px; border-radius:8px; margin-top:6px; margin-bottom:10px; object-fit:cover;">
+          </div>
+          <div>
+            <label>Categoría</label>
+            <input type="text" id="rCategoria" placeholder="Ej. Química, Matemáticas">
+          </div>
+          <div>
+            <label>Precio (MXN, si es de paga)</label>
+            <input type="number" id="rPrecio" placeholder="0" min="0">
+          </div>
+          <div class="full">
+            <label>URL de imagen de portada (opcional — esta SÍ se ve siempre, sin pagar, es la miniatura de la tarjeta)</label>
+            <input type="text" id="rImagenURL" placeholder="https://i.imgur.com/ejemplo.jpg">
+            <button type="button" class="btn-ayuda-imagen secondary" data-target="rImagenURL" style="margin-top:6px; font-size:12px; padding:7px 10px;">¿No sabes cómo subir una imagen? Toca aquí</button>
+            <img id="rImagenPreview" class="hidden" style="max-width:100%; max-height:160px; border-radius:8px; margin-top:6px; margin-bottom:10px; object-fit:cover;">
+          </div>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="rGratis"> <label style="margin:0">Es gratis</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="rPublico"> <label style="margin:0">Es público (visible sin necesidad de estar aprobado)</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="rVisible" checked> <label style="margin:0">Visible en el sitio (desactiva para ocultarlo sin borrarlo)</label>
+        </div>
+        <button id="btnGuardarRecurso">Guardar recurso</button>
+        <button class="secondary hidden" id="btnCancelarEdicion">Cancelar edición</button>
+      </div>
+
+      <div class="card">
+        <h3>Recursos existentes</h3>
+        <table>
+          <thead>
+            <tr><th>Título</th><th>Categoría</th><th>Tipo</th><th>Visibilidad</th><th>Acciones</th></tr>
+          </thead>
+          <tbody id="tablaRecursos"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyRecursos">Aún no hay recursos.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Usuarios pendientes -->
+    <div id="tabUsuarios" class="hidden">
+      <div class="card">
+        <h3>Solicitudes pendientes de aprobación</h3>
+        <table>
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaPendientes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyPendientes">No hay solicitudes pendientes.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Todos los usuarios -->
+    <div id="tabTodos" class="hidden">
+      <div class="card">
+        <h3>Todos los usuarios</h3>
+        <table>
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Saldo</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaTodos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: Roles pendientes -->
+    <div id="tabRoles" class="hidden">
+      <div class="card">
+        <h3>Roles de perfil propuestos por usuarios</h3>
+        <table>
+          <thead><tr><th>Rol</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaRolesPendientes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyRoles">No hay roles pendientes de aprobación.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Juegos pendientes -->
+    <div id="tabJuegos" class="hidden">
+      <div class="card">
+        <h3>Juegos subidos por usuarios (pendientes de aprobación)</h3>
+        <table>
+          <thead><tr><th>Juego</th><th>Autor</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaJuegosPendientes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyJuegosAdmin">No hay juegos pendientes de aprobación.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Registro de moderación -->
+    <div id="tabRegistro" class="hidden">
+      <div class="card">
+        <h3>Registro de acciones de moderación</h3>
+        <table>
+          <thead><tr><th>Fecha</th><th>Admin</th><th>Acción</th><th>Detalle</th></tr></thead>
+          <tbody id="tablaLogs"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyLogs">Aún no hay acciones registradas.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Tarjetas de regalo -->
+    <div id="tabTarjetas" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Crear tarjeta de regalo</h3>
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Monto</label>
+        <input type="number" id="montoNuevaTarjeta" placeholder="Ej. 100" min="1" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+        <button id="btnCrearTarjeta">Generar código</button>
+        <div id="codigoGeneradoBox" class="hidden" style="margin-top:14px; padding:14px; border-radius:var(--radius); background:rgba(76,175,125,0.1); border:1px solid var(--success); text-align:center;">
+          <div style="font-size:12px; color:var(--text-dim); margin-bottom:6px;">Código generado — compártelo con quien pagó:</div>
+          <div id="codigoGeneradoTexto" style="font-size:22px; font-weight:700; letter-spacing:0.05em; color:var(--success); font-family:monospace;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Todas las tarjetas</h3>
+        <table>
+          <thead><tr><th>Código</th><th>Monto</th><th>Estado</th><th>Canjeada por</th></tr></thead>
+          <tbody id="tablaTarjetas"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyTarjetas">Aún no has creado ninguna tarjeta.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Novedades / registro de actualizaciones -->
+    <div id="tabNovedades" class="hidden">
+      <div class="card">
+        <h3 id="novedadFormTitulo" style="margin-top:0;">Publicar novedad</h3>
+        <input type="hidden" id="novedadEditId">
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Tipo</label>
+        <select id="novedadTipo" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+          <option value="nueva_funcion">✨ Nueva función</option>
+          <option value="mejora" selected>⚙️ Mejora</option>
+          <option value="arreglo">🛠️ Arreglo</option>
+        </select>
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Título</label>
+        <input type="text" id="novedadTitulo" placeholder="Ej. Nuevo sistema de tarjetas de regalo" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Descripción (opcional)</label>
+        <textarea id="novedadDescripcion" placeholder="Explica brevemente qué cambió o qué pueden hacer ahora los usuarios" style="width:100%; min-height:80px; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; font-family:inherit; margin-bottom:10px;"></textarea>
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Versión (opcional)</label>
+        <input type="text" id="novedadVersion" placeholder="Ej. v2.4" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
+
+        <div style="display:flex; gap:8px;">
+          <button id="btnPublicarNovedad">Publicar</button>
+          <button class="secondary hidden" id="btnCancelarEdicionNovedad">Cancelar edición</button>
+        </div>
+        <div class="msg" id="msgNovedad" style="display:none; margin-top:10px;"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Novedades publicadas</h3>
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Título</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaNovedades"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyNovedades">Aún no has publicado ninguna novedad.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Reportes -->
+    <div id="tabReportes" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Reportes pendientes</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">Publicaciones, comentarios y usuarios reportados por la comunidad. Revisa y decide: borrar el contenido, suspender al usuario, o descartar el reporte.</p>
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Reportado</th><th>Reportante</th><th>Motivo</th><th>Info adicional</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaReportes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyReportes">No hay reportes pendientes. 🎉</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Historial de reportes resueltos</h3>
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Reportado</th><th>Motivo</th><th>Resolución</th><th>Admin</th></tr></thead>
+          <tbody id="tablaReportesResueltos"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyReportesResueltos">Aún no se ha resuelto ningún reporte.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Verificaciones -->
+    <div id="tabVerificaciones" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Otorgar verificación</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">
+          🥇 Dorada: de pago (el usuario también puede comprarla directo con su saldo Ox2 desde su billetera).<br>
+          ✅ Azul: gratis, a tu criterio (ej. cuenta con suficiente relevancia en la comunidad).
+        </p>
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Buscar usuario</label>
+        <input type="text" id="buscarUsuarioVerificar" placeholder="Nombre o @usuario..." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+        <div id="resultadosVerificar"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Usuarios verificados</h3>
+        <table>
+          <thead><tr><th>Usuario</th><th>Dorada</th><th>Azul</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaVerificados"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyVerificados">Todavía no hay usuarios verificados.</div>
+      </div>
+    </div>
+
+    <!-- TAB: Recompensas -->
+    <div id="tabRecompensas" class="hidden">
+      <div class="card">
+        <h3 style="margin-top:0;">Cupo mensual de recompensas</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">
+          Presupuesto máximo en tarjetas de regalo reales por mes. Se resetea automáticamente cada mes.
+        </p>
+        <div id="estadoCupoAdmin" style="font-size:15px; font-weight:600;">Cargando...</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Canjes pendientes de entregar</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">Entrega el código real (Xbox/Microsoft Store) por WhatsApp u otro medio, y márcalo aquí.</p>
+        <table>
+          <thead><tr><th>Fecha</th><th>Usuario</th><th>Recompensa</th><th>Costo Ox2</th><th>Acción</th></tr></thead>
+          <tbody id="tablaCanjesPendientes"></tbody>
+        </table>
+        <div class="empty hidden" id="emptyCanjesPendientes">No hay canjes pendientes. 🎉</div>
+      </div>
+    </div>
+
+    <!-- TAB: Modo mantenimiento -->
+    <div id="tabMantenimiento" class="hidden">
+      <div class="card">
+        <div id="estadoMantenimientoBox" style="display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:var(--radius); margin-bottom:18px;">
+          <span id="estadoMantenimientoIcono" style="font-size:20px;">✅</span>
+          <span id="estadoMantenimientoTexto" style="font-weight:600;">El sitio está funcionando normalmente</span>
+        </div>
+
+        <h3 style="margin-top:0;">Activar modo mantenimiento</h3>
+        <p style="font-size:13px; color:var(--text-dim); margin-top:-6px;">Mientras esté activo, solo los administradores podrán usar el sitio. Los demás verán una pantalla informativa.</p>
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Motivo</label>
+        <input type="text" id="mantMotivo" placeholder="Ej. Arreglar bugs" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+
+        <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Horario (opcional)</label>
+        <input type="text" id="mantHorario" placeholder="Ej. De 3:00 PM a 5:00 PM" style="width:100%; padding:10px; border-radius:var(--radius); border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
+
+        <div style="display:flex; gap:8px;">
+          <button class="danger" id="btnActivarMantenimiento">Activar mantenimiento</button>
+          <button class="success" id="btnDesactivarMantenimiento">Desactivar mantenimiento</button>
+        </div>
+        <div class="msg" id="msgMantenimiento" style="display:none; margin-top:10px;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+</div>
+
+<!-- Modal: gestionar recursos pagados de un usuario -->
+<div class="hidden" id="modalPagos" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50;">
+  <div class="card" style="max-width:420px; width:90%; max-height:80vh; overflow-y:auto;">
+    <h3 id="pagosUsuarioNombre">Recursos pagados</h3>
+    <p style="color:var(--text-dim); font-size:13px;">Marca los recursos de paga que este usuario ya pagó en efectivo.</p>
+    <div id="listaPagos"></div>
+    <div style="margin-top:14px; display:flex; gap:8px;">
+      <button id="btnGuardarPagos">Guardar</button>
+      <button class="secondary" id="btnCerrarPagos">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: suspender usuario -->
+<div class="hidden" id="modalSuspender" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50;">
+  <div class="card" style="max-width:420px; width:90%;">
+    <h3 id="suspenderUsuarioNombre">Suspender cuenta</h3>
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Motivo (se le mostrará al usuario)</label>
+    <textarea id="suspenderMotivo" placeholder="Ej. Lenguaje ofensivo repetido en el chat" style="width:100%; min-height:70px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; font-family:inherit; margin-bottom:10px;"></textarea>
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Duración</label>
+    <select id="suspenderDuracion" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
+      <option value="1">1 día</option>
+      <option value="3">3 días</option>
+      <option value="7">7 días</option>
+      <option value="30">30 días</option>
+      <option value="permanente">Permanente (hasta que la reactives)</option>
+    </select>
+    <div style="display:flex; gap:8px;">
+      <button class="danger" id="btnConfirmarSuspender" style="flex:1;">Suspender</button>
+      <button class="secondary" id="btnCancelarSuspender">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: dar/quitar saldo -->
+<div class="hidden" id="modalSaldo" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50;">
+  <div class="card" style="max-width:420px; width:90%;">
+    <h3 id="saldoUsuarioNombre">Gestionar saldo</h3>
+    <p style="font-size:13px; color:var(--text-dim);" id="saldoUsuarioActual">Saldo actual: $0</p>
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Monto</label>
+    <input type="number" id="saldoMonto" placeholder="Ej. 100" min="1" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:10px;">
+    <label style="font-size:12px; color:var(--text-dim); display:block; margin-bottom:4px;">Motivo (opcional)</label>
+    <input type="text" id="saldoMotivo" placeholder="Ej. Pago en efectivo recibido" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-size:14px; margin-bottom:14px;">
+    <div style="display:flex; gap:8px;">
+      <button class="success" id="btnDarSaldo" style="flex:1;">Dar</button>
+      <button class="danger" id="btnQuitarSaldo" style="flex:1;">Quitar</button>
+      <button class="secondary" id="btnCerrarSaldo">Cancelar</button>
+    </div>
+    <div class="msg" id="msgSaldo" style="display:none; margin-top:10px;"></div>
+  </div>
+</div>
+
+<script type="module" src="/admin.js"></script>
+</body>
+</html>
