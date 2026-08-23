@@ -351,7 +351,7 @@
         <div id="terminosField" class="hidden" style="display:flex; align-items:flex-start; gap:8px; margin-bottom:14px;">
           <input type="checkbox" id="checkTerminos" style="width:auto; margin:3px 0 0;">
           <label for="checkTerminos" style="margin:0; font-size:13px; color:var(--text-dim); cursor:pointer;">
-            Acepto los <a href="terminos.html" target="_blank" style="color:var(--accent);">términos y condiciones</a> de OxygeNMedia
+            Acepto los <a href="/terminos" target="_blank" style="color:var(--accent);">términos y condiciones</a> de OxygeNMedia
           </label>
         </div>
 
@@ -375,7 +375,7 @@
         </div>
 
         <div class="toggle-link" style="margin-top:8px;">
-          <a href="comprar-giftcard.html" style="color:#e0a941;">
+          <a href="/comprar-giftcard" style="color:#e0a941;">
             🎁 Comprar una tarjeta de regalo Ox2
           </a>
         </div>
@@ -568,13 +568,13 @@ observarSesion((user, perfil) => {
         document.getElementById("pendingTexto").style.whiteSpace = "pre-line";
         mostrarSoloVista(pendingView);
       } else {
-        location.href = "muro.html";
+        location.href = "/muro";
       }
     });
     return;
   }
 
-  location.href = "muro.html";
+  location.href = "/muro";
 });
 </script>
 
