@@ -23,6 +23,7 @@ const inputUsername = document.getElementById("inputUsername");
 const usernameMsg = document.getElementById("usernameMsg");
 const inputFotoURL = document.getElementById("inputFotoURL");
 const inputDescripcion = document.getElementById("inputDescripcion");
+const checkSeguidoresPrivados = document.getElementById("checkSeguidoresPrivados");
 
 const rolesActuales = document.getElementById("rolesActuales");
 const rolesDisponiblesLista = document.getElementById("rolesDisponiblesLista");
@@ -82,6 +83,7 @@ function cargarDatosEnFormulario() {
   inputUsername.value = perfilActual.username || "";
   inputFotoURL.value = perfilActual.fotoURL || "";
   inputDescripcion.value = perfilActual.descripcion || "";
+  checkSeguidoresPrivados.checked = perfilActual.seguidoresPrivados || false;
 
   actualizarAvatar();
 
@@ -265,11 +267,12 @@ btnGuardarPerfil.addEventListener("click", async () => {
       username: inputUsername.value.trim(),
       fotoURL: inputFotoURL.value.trim(),
       descripcion: inputDescripcion.value.trim(),
+      seguidoresPrivados: checkSeguidoresPrivados.checked,
       rolesPerfil: misRolesPerfil,
       rolesPendientes: misRolesPendientes
     });
 
-    perfilActual = { ...perfilActual, nombre, username: inputUsername.value.trim(), fotoURL: inputFotoURL.value.trim(), descripcion: inputDescripcion.value.trim(), rolesPerfil: misRolesPerfil, rolesPendientes: misRolesPendientes };
+    perfilActual = { ...perfilActual, nombre, username: inputUsername.value.trim(), fotoURL: inputFotoURL.value.trim(), descripcion: inputDescripcion.value.trim(), seguidoresPrivados: checkSeguidoresPrivados.checked, rolesPerfil: misRolesPerfil, rolesPendientes: misRolesPendientes };
     cargarDatosEnFormulario();
 
     msgGuardado.textContent = "Perfil actualizado ✓";
