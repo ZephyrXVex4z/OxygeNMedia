@@ -6,10 +6,11 @@ import { observarSesion, cuentaBloqueada } from "./auth.js";
 import {
   collection, doc, getDoc, addDoc, getDocs, query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
-import { obtenerEstadoAmistad, enviarSolicitudAmistad, aceptarSolicitudAmistad, eliminarAmistad } from "./amistades.js";
+import { obtenerEstadoAmistad, enviarSolicitudAmistad, aceptarSolicitudAmistad, eliminarAmistad, contarAmigos } from "./amistades.js";
 import { insigniaVerificado } from "./verificados.js";
-import { siguiendoA, seguirUsuario, dejarDeSeguir } from "./seguidores.js";
+import { siguiendoA, seguirUsuario, dejarDeSeguir, listarSeguidores, listarSiguiendo } from "./seguidores.js";
 import { crearReporte, TIPO_OBJETIVO, MOTIVOS_POR_TIPO } from "./reportes.js";
+import { yoBloqueeA, bloquearUsuario, desbloquearUsuario } from "./bloqueos.js";
 
 let usuarioActual = null;
 let perfilVisto = null; // { uid, nombre, username, ... } del perfil que se está mostrando
@@ -31,6 +32,7 @@ const btnChatearDesdeAqui = document.getElementById("btnChatearDesdeAqui");
 const btnAmistad = document.getElementById("btnAmistad");
 const btnSeguir = document.getElementById("btnSeguir");
 const btnReportarUsuario = document.getElementById("btnReportarUsuario");
+const btnBloquearUsuario = document.getElementById("btnBloquearUsuario");
 const btnVolverBusqueda = document.getElementById("btnVolverBusqueda");
 
 observarSesion((user, perfil) => {
@@ -124,7 +126,10 @@ function mostrarPerfilDatos(u) {
   verNombre.textContent = u.nombre || "Sin nombre";
   if (verInsignias) verInsignias.innerHTML = insigniaVerificado(u);
   verUsername.textContent = u.username ? "@" + u.username : "";
-  if (verSeguidores) verSeguidores.textContent = `${u.seguidoresCount || 0} seguidores · ${u.siguiendoCount || 0} seguidos`;
+  if (verSeguidores) {
+    actualizarTextoSeguidores(u);
+    verSeguidores.onclick = () => abrirListaSeguidores(u);
+  }
 
   if (u.fotoURL) {
     verAvatarImg.src = u.fotoURL;
@@ -154,9 +159,128 @@ function mostrarPerfilDatos(u) {
 
   actualizarBotonAmistad();
   actualizarBotonSeguir();
+  actualizarBotonBloquear();
 }
 
-// ============ SEGUIR (independiente de amistad) ============
+// ============ BLOQUEAR ============
+
+async function actualizarBotonBloquear() {
+  if (!btnBloquearUsuario) return;
+  btnBloquearUsuario.disabled = true;
+  btnBloquearUsuario.textContent = "Cargando...";
+
+  const bloqueado = await yoBloqueeA(usuarioActual.uid, perfilVisto.uid);
+  btnBloquearUsuario.textContent = bloqueado ? "🚫 Desbloquear usuario" : "🚫 Bloquear usuario";
+  btnBloquearUsuario.disabled = false;
+}
+
+if (btnBloquearUsuario) {
+  btnBloquearUsuario.addEventListener("click", async () => {
+    if (!perfilVisto) return;
+    const yaBloqueado = await yoBloqueeA(usuarioActual.uid, perfilVisto.uid);
+
+    if (!yaBloqueado && !confirm(`¿Bloquear a ${perfilVisto.nombre}? No podrá escribirte por chat ni seguirte. No se le notificará.`)) return;
+
+    btnBloquearUsuario.disabled = true;
+    try {
+      if (yaBloqueado) {
+        await desbloquearUsuario(usuarioActual.uid, perfilVisto.uid);
+      } else {
+        await bloquearUsuario(usuarioActual.uid, perfilVisto.uid);
+      }
+      await actualizarBotonBloquear();
+    } catch (err) {
+      alert("Error: " + err.message);
+      btnBloquearUsuario.disabled = false;
+    }
+  });
+}
+
+// ============ SEGUIDORES / SEGUIDOS: contador + lista (con privacidad) ============
+
+async function actualizarTextoSeguidores(u) {
+  const amigosCount = await contarAmigos(u.uid);
+  verSeguidores.textContent = `${u.seguidoresCount || 0} seguidores · ${u.siguiendoCount || 0} seguidos · ${amigosCount} amigos`;
+}
+
+// Un perfil puede marcar "seguidoresPrivados" para que nadie más vea SU lista de
+// seguidores/seguidos (el número sigue siendo público, solo se oculta el detalle de
+// quiénes son). El dueño del perfil y los admins siempre pueden verla igual.
+function puedeVerListaDe(u) {
+  if (!u.seguidoresPrivados) return true;
+  if (usuarioActual.uid === u.uid) return true;
+  if (usuarioActual.rol === "admin") return true;
+  return false;
+}
+
+async function abrirListaSeguidores(u) {
+  if (!puedeVerListaDe(u)) {
+    alert("Este usuario mantiene su lista de seguidores/seguidos en privado.");
+    return;
+  }
+
+  let modal = document.getElementById("modalListaSeguidores");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "modalListaSeguidores";
+    modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px;";
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) modal.innerHTML = ""; });
+  }
+
+  modal.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;max-width:420px;width:100%;max-height:75vh;overflow-y:auto;">
+      <h3 style="margin-top:0;">${u.nombre}</h3>
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <button id="tabListaSeguidores" style="flex:1;">Seguidores (${u.seguidoresCount || 0})</button>
+        <button id="tabListaSiguiendo" class="secondary" style="flex:1;">Siguiendo (${u.siguiendoCount || 0})</button>
+      </div>
+      <div id="contenidoListaSeguidores">Cargando...</div>
+    </div>
+  `;
+
+  const contenido = document.getElementById("contenidoListaSeguidores");
+  const tabSeguidores = document.getElementById("tabListaSeguidores");
+  const tabSiguiendo = document.getElementById("tabListaSiguiendo");
+
+  async function pintarLista(uids) {
+    if (uids.length === 0) {
+      contenido.innerHTML = "<div class='empty'>Nadie por aquí todavía.</div>";
+      return;
+    }
+    const perfiles = await Promise.all(uids.map(async (uid) => {
+      const snap = await getDoc(doc(db, "usuarios", uid));
+      return snap.exists() ? { uid, ...snap.data() } : null;
+    }));
+    contenido.innerHTML = perfiles.filter(Boolean).map(p => `
+      <div class="search-result" data-ir-perfil="${p.uid}">
+        <div class="search-info">
+          <div class="nombre">${p.nombre}${insigniaVerificado(p)}</div>
+          <div class="username">@${p.username || "—"}</div>
+        </div>
+      </div>
+    `).join("");
+    contenido.querySelectorAll("[data-ir-perfil]").forEach(el => {
+      el.addEventListener("click", () => {
+        modal.innerHTML = "";
+        mostrarPerfil(el.dataset.irPerfil);
+      });
+    });
+  }
+
+  tabSeguidores.addEventListener("click", async () => {
+    tabSeguidores.className = ""; tabSiguiendo.className = "secondary";
+    contenido.innerHTML = "Cargando...";
+    pintarLista(await listarSeguidores(u.uid));
+  });
+  tabSiguiendo.addEventListener("click", async () => {
+    tabSiguiendo.className = ""; tabSeguidores.className = "secondary";
+    contenido.innerHTML = "Cargando...";
+    pintarLista(await listarSiguiendo(u.uid));
+  });
+
+  pintarLista(await listarSeguidores(u.uid));
+}
 
 async function actualizarBotonSeguir() {
   if (!btnSeguir) return;
