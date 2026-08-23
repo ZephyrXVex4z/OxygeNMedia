@@ -53,6 +53,9 @@ const btnPublicar = document.getElementById("btnPublicar");
 const listaFeed = document.getElementById("listaFeed");
 const emptyFeed = document.getElementById("emptyFeed");
 const btnCargarMas = document.getElementById("btnCargarMas");
+const contadorTexto = document.getElementById("contadorTexto");
+
+const MAX_CARACTERES_POST = 750;
 
 const modalCitarRecurso = document.getElementById("modalCitarRecurso");
 const buscarRecursoCitar = document.getElementById("buscarRecursoCitar");
@@ -79,10 +82,18 @@ function cargarBorrador() {
     const guardado = localStorage.getItem(CLAVE_BORRADOR);
     if (guardado) inputTexto.value = guardado;
   } catch {}
+  actualizarContadorTexto();
+}
+
+function actualizarContadorTexto() {
+  const largo = inputTexto.value.length;
+  contadorTexto.textContent = `${largo} / ${MAX_CARACTERES_POST}`;
+  contadorTexto.style.color = largo >= MAX_CARACTERES_POST ? "var(--danger)" : "var(--text-dim)";
 }
 
 let debounceBorrador = null;
 inputTexto.addEventListener("input", () => {
+  actualizarContadorTexto();
   clearTimeout(debounceBorrador);
   debounceBorrador = setTimeout(() => {
     try {
@@ -196,6 +207,11 @@ btnPublicar.addEventListener("click", async () => {
 
   if (!texto && !imagenURL && !recursoCitadoActual) {
     alert("Escribe algo, agrega una imagen, o cita un recurso antes de publicar.");
+    return;
+  }
+
+  if (texto.length > MAX_CARACTERES_POST) {
+    alert(`Tu publicación supera el límite de ${MAX_CARACTERES_POST} caracteres. Recórtala un poco.`);
     return;
   }
 
@@ -369,7 +385,7 @@ function renderPost(p) {
       <div class="comentarios-box" id="comentarios-${p.id}">
         <div id="listaComentarios-${p.id}"></div>
         <div class="comentario-input-row">
-          <input type="text" placeholder="Escribe un comentario..." data-input-comentario="${p.id}">
+          <input type="text" placeholder="Escribe un comentario..." maxlength="500" data-input-comentario="${p.id}">
           <button data-enviar-comentario="${p.id}">Enviar</button>
         </div>
       </div>
@@ -619,6 +635,10 @@ async function abrirComentarios(pubId) {
   const enviar = async () => {
     const texto = input.value.trim();
     if (!texto) return;
+    if (texto.length > 500) {
+      alert("Tu comentario supera el límite de 500 caracteres. Recórtalo un poco.");
+      return;
+    }
 
     const postDiv = document.querySelector(`[data-pub-id="${pubId}"]`);
     const autorId = postDiv?.dataset.autorId || null;
